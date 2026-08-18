@@ -1,0 +1,23 @@
+.DS_Store
+.ai-egc-runtime/
+ai-egc/generated/
+
+# Real Tri-State exports: contain internal hostnames and tenant identifiers.
+# Not committed without an explicit sanitization decision (ADR-005).
+sample_data/*.csv
+
+# Reference catalog produced by another tool: contains the Azure tenant ID,
+# an internal hostname, and the mail domain. Kept locally, never committed.
+raw_files/catalog/
+
+# Generated, never authoritative
+build/
+reports/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets
+config/.env
+config/test_user_credentials.json
+config/forbidden_literals.txt

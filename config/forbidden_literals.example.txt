@@ -1,0 +1,11 @@
+# Copy to config/forbidden_literals.txt and fill in.
+#
+# Identifiers that must never appear in generated output or seeded data, one per
+# line, matched case-insensitively as a plain substring. Gitignored, because
+# these values should not themselves be committed.
+#
+# Typical entries: the Entra/Azure tenant ID, the AD domain SID prefix, and any
+# internal DNS domain not already listed in catalog/redaction.yaml.
+#
+# 00000000-0000-0000-0000-000000000000
+# S-1-5-21-<domain>-<identifier>-<identifier>

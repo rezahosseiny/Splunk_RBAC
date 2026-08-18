@@ -1,0 +1,172 @@
+# Tri-State business units that can hold data ownership.
+#
+# The strategy requires every production index to name a business owner and a
+# technical owner, with distinct accountabilities:
+#
+#   business owner   accountable for data quality, continued business need, and
+#                    approving access requests and new use cases
+#   technical owner  owns the originating system; accountable for data
+#                    correctness, change notification, and onboarding
+#
+# The same unit may hold both roles where it both operates a system and depends
+# on its output — common for infrastructure telemetry. Where the roles differ,
+# the split is the point: it puts the access decision with the unit that
+# understands the business need, and the data-correctness decision with the unit
+# that runs the system.
+#
+# These unit codes are the only permitted values in catalog/owners.yaml.
+#
+# Status: proposed. Authority: Reza Hosseiny.
+
+version: 1
+status: proposed
+
+groups:
+  it: Information Technology
+  security: Security
+  ot: Operations Technology and energy applications
+  operations: Grid and market operations
+  telecom: Telecommunications
+  business: Business technology
+  corporate: Corporate functions
+
+units:
+
+  # ---- Information Technology -------------------------------------------
+  it_infrastructure:
+    name: IT Infrastructure
+    group: it
+    scope: Compute, storage, virtualization, and server operating systems.
+  it_observability:
+    name: IT Observability
+    group: it
+    scope: >-
+      The Splunk platform itself, monitoring, and telemetry pipelines. Owns
+      platform-internal indexes and is the technical owner for vendor
+      observability tooling.
+  it_networking:
+    name: IT Networking
+    group: it
+    scope: >-
+      Switching, routing, wireless, load balancing, DNS, DHCP, and IPAM.
+  it_service_desk:
+    name: IT Service Desk
+    group: it
+    scope: Service management, incident and request handling, CMDB.
+  it_field_services:
+    name: IT Field Services
+    group: it
+    scope: On-site technical support across facilities and remote locations.
+  it_euc:
+    name: IT EUC
+    group: it
+    scope: >-
+      End-user computing — workstations, mobile devices, and the productivity
+      and collaboration platforms users work in.
+
+  # ---- Security ---------------------------------------------------------
+  sec_iam:
+    name: Sec IAM
+    group: security
+    scope: >-
+      Identity and access management: directories, federation, multi-factor
+      authentication, and joiner-mover-leaver processes.
+  sec_cyber:
+    name: Sec Cyber
+    group: security
+    scope: >-
+      Cyber defence, detection and response, security tooling, and the security
+      content that consumes most Class 5 data.
+  physical_security:
+    name: Physical Security
+    group: security
+    scope: >-
+      Physical access control, surveillance, and site security systems.
+
+  # ---- Operations Technology --------------------------------------------
+  operations_technology:
+    name: Operations Technology (OT)
+    group: ot
+    scope: >-
+      OT and ICS platforms: SCADA, EMS, historians, substation and plant
+      systems, and the OT network they run on.
+  energy_application_services:
+    name: Energy Application Services (EAS)
+    group: ot
+    scope: >-
+      Applications supporting energy operations — forecasting, modelling,
+      outage and market-facing systems.
+
+  # ---- Grid and market operations ---------------------------------------
+  transmission_ops:
+    name: Transmission Ops
+    group: operations
+    scope: Transmission system operation, switching, and reliability.
+  generation_ops:
+    name: Generation Ops
+    group: operations
+    scope: Generation plant operation, dispatch, and performance.
+  energy_markets:
+    name: Energy Markets
+    group: operations
+    scope: Market participation, settlements, load and price forecasting.
+
+  # ---- Telecommunications ----------------------------------------------
+  telecom_engineering:
+    name: Telecom Engineering
+    group: telecom
+    scope: >-
+      Design and engineering of utility telecommunications — fibre, microwave,
+      radio, and OT transport.
+  telecom_maintenance:
+    name: Telecom Maintenance
+    group: telecom
+    scope: Field maintenance and repair of telecommunications assets.
+
+  # ---- Business technology ---------------------------------------------
+  business_apps:
+    name: Business Apps
+    group: business
+    scope: >-
+      Enterprise business applications — ERP, financial, work and asset
+      management systems.
+  business_services:
+    name: Business Services
+    group: business
+    scope: >-
+      Business process services and the collaboration and content platforms
+      supporting them.
+  technology_office:
+    name: Technology Office
+    group: business
+    scope: >-
+      Architecture, standards, portfolio, and governance across technology.
+      Holds ownership where no single operating unit is accountable.
+
+  # ---- Corporate functions ---------------------------------------------
+  finance_accounting:
+    name: Finance & Accounting
+    group: corporate
+    scope: Financial systems, accounting, treasury, and payment processes.
+  human_resources:
+    name: Human Resources
+    group: corporate
+    scope: Workforce data, HR systems, and employee lifecycle.
+  safety:
+    name: Safety
+    group: corporate
+    scope: Occupational safety programmes, incidents, and reporting.
+  legal:
+    name: Legal
+    group: corporate
+    scope: Legal matters, litigation hold, and records obligations.
+  compliance:
+    name: Compliance
+    group: corporate
+    scope: >-
+      Regulatory compliance including NERC CIP and PCI, evidence production,
+      and audit support.
+  facilities:
+    name: Facilities
+    group: corporate
+    scope: Buildings, plant services, and building management systems.

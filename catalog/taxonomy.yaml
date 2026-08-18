@@ -1,0 +1,147 @@
+# Registered codes and tiers for the governed naming schema.
+#
+#   [class]_[compliance]_[domain]_[content]_[optional_detail]_[retention]
+#
+# Class codes are STRICTLY DEFINED by the strategy. Compliance, domain, and
+# content codes are DEFINABLE by the Data Governance Council; codes marked
+# `source: proposed` are new in this project and need Council registration.
+#
+# Status: proposed (ADR-008). Authority: Reza Hosseiny.
+
+classes:
+  pub: {number: 1, name: Public,      source: strategy}
+  ent: {number: 2, name: Enterprise,  source: strategy}
+  ops: {number: 3, name: Operational, source: strategy}
+  ctl: {number: 4, name: Control,     source: strategy}
+  res: {number: 5, name: Restricted,  source: strategy}
+
+compliance:
+  non: {name: Non-regulated,            source: strategy}
+  cip: {name: NERC CIP,                 source: strategy}
+  pci: {name: Payment Card Industry,    source: strategy}
+  hpa: {name: HIPAA,                    source: strategy}
+  gdr: {name: GDPR,                     source: strategy}
+
+domains:
+  sec: {name: Security,                          source: strategy}
+  ics: {name: Industrial Control Systems (OT),   source: strategy}
+  inf: {name: Infrastructure (IT),               source: strategy}
+  app: {name: Application / business logic,      source: strategy}
+
+content:
+  # From the strategy's own examples
+  win: {name: Windows event logs,        source: strategy}
+  fwl: {name: Firewall traffic,          source: strategy}
+  scd: {name: SCADA telemetry,           source: strategy}
+  dns: {name: DNS and DHCP,              source: strategy}
+  web: {name: Web access logs,           source: strategy}
+  lin: {name: Linux logs,                source: strategy}
+  ndl: {name: Network device logs,       source: strategy}
+  wfl: {name: Windows firewall logs,     source: strategy}
+  lfl: {name: Linux firewall logs,       source: strategy}
+  aud: {name: Audit trails,              source: strategy}
+  bad: {name: Quarantined / rejected,    source: strategy}
+  # Proposed in this project — require Data Governance Council registration
+  stg: {name: Storage platform logs,             source: proposed}
+  vmw: {name: Virtualization platform logs,      source: proposed}
+  whm: {name: Windows host monitoring,           source: proposed}
+  ocl: {name: Oracle Cloud Infrastructure,       source: proposed}
+  iam: {name: Identity and access management,    source: proposed}
+  edr: {name: Endpoint detection and response,   source: proposed}
+  nac: {name: Network access control,            source: proposed}
+  dlp: {name: Data loss prevention,              source: proposed}
+  hsm: {name: Hardware security module,          source: proposed}
+  col: {name: Collaboration platform logs,       source: proposed}
+  itm: {name: IT service management,             source: proposed}
+  hst: {name: OT historian / time series,        source: proposed}
+  wea: {name: Weather and external public feeds, source: proposed}
+
+# Retention tiers. `searchable_days` = hot + cold, and is what
+# frozenTimePeriodInSecs encodes. `archive_days` is post-frozen custody
+# handled outside Splunk.
+retention:
+  s:
+    name: Short term
+    hot_days: 7
+    cold_days: 23
+    searchable_days: 30
+    archive_days: 0
+    frozen_action: delete
+  m:
+    name: Medium term
+    hot_days: 30
+    cold_days: 335
+    searchable_days: 365
+    archive_days: 0
+    frozen_action: delete
+  l:
+    name: Long term
+    hot_days: 90
+    cold_days: 1095
+    searchable_days: 1185
+    archive_days: 1095
+    frozen_action: archive
+    open_question: >-
+      Strategy 2.0 is internally inconsistent for this tier. The Retention
+      Suffix section says 3 years total; the retention table says 90 days
+      hot + 3 years cold + 3 years frozen archive, labelled 7 years total.
+      Encoded here as 1,185 searchable days (90 + 1,095) plus a 1,095-day
+      archive. Needs a decision; see ADR-008 Consequences.
+
+# Splunk's search-execution capabilities live only in pr_search_* bundles.
+search_execution_capabilities:
+  - search
+  - rtsearch
+  - schedule_search
+
+# Sensitive tier. The strategy lists these "at minimum"; entries marked
+# addition: true are proposed extensions for review.
+sensitive_capabilities:
+  edit_user:                {reason: user administration}
+  edit_roles_grantable:     {reason: role administration}
+  edit_tokens_all:          {reason: token access}
+  list_storage_passwords:   {reason: credential access}
+  edit_search_server:       {reason: platform configuration}
+  edit_indexer_cluster:     {reason: platform configuration}
+  delete_by_keyword:        {reason: data destruction}
+  run_collect:              {reason: arbitrary index writes}
+  edit_indexes:             {reason: index modification}
+  edit_indexes_allinternal: {reason: index modification}
+  clean_indexes:            {reason: index modification}
+  edit_roles:               {reason: role administration, addition: true}
+  admin_all_objects:        {reason: bypasses object ACLs, addition: true}
+  edit_authentication_extensions:
+                            {reason: authentication chain, addition: true}
+
+# Destructive capabilities requiring an explicit allow-list, per the
+# strategy's "destructive capability check" detection.
+destructive_capabilities:
+  - delete_by_keyword
+  - clean_indexes
+  - edit_indexes
+  - edit_indexes_allinternal
+
+# Built-in roles: never modified, never imported.
+builtin_roles: [admin, power, user, can_delete]
+
+# Bundle catalog sizing targets (warn, not fail, when exceeded).
+sizing_targets:
+  pr_data:      {min: 8, max: 12}
+  pr_search:    {min: 3, max: 4}
+  pr_feat:      {min: 6, max: 10}
+  pr_workspace: {min: 3, max: 6}
+
+# Index names may skip the naming rule only under a registered exception
+# class, with a justification and an owner recorded per index.
+naming_exception_classes:
+  vendor_mandated: >-
+    The index name is resolved internally by a vendor app (Splunk
+    Enterprise Security, ITSI) in correlation searches, data models, or
+    macros, so renaming it breaks the app. Strategy 2.0 defines no such
+    exception class; this is a recorded gap (ADR-008).
+
+# Sourcetype and source standard, per the strategy's metadata section.
+metadata_standard:
+  format: tag:tag:tag
+  max_tags: 5
+  case: lower

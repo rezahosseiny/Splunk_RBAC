@@ -1,0 +1,256 @@
+# Redaction applied to every value taken from a production export — before it
+# is written to a document, a report, or a Splunk index.
+#
+# This is a hard rule, not a convention. Tools load it and enforce it; the
+# remediation document and the data seeder both refuse to emit output in which
+# a redaction target survived.
+#
+# Every replacement is deterministic and format-preserving: the same input
+# always yields the same output, so `make rebuild` reproduces byte-identical
+# data, and the surrounding event stays parseable. Replacements land in ranges
+# reserved by RFC for documentation or testing, so no redacted value can ever
+# implicate a real host, address, or mailbox.
+#
+# Status: proposed (ADR-009, extended ADR-010). Authority: Reza Hosseiny.
+
+version: 2
+
+# Salt for every pseudonym derivation. Committed deliberately: it makes
+# pseudonyms stable across machines and runs. It is not a secret — pseudonyms
+# are de-identified, not cryptographically unlinkable. Move it to config/.env if
+# unlinkability against a known roster is required.
+salt: tristate-splunk-rbac-harness
+
+email_address:
+  # pseudonym — replace each address with a stable made-up address, so the same
+  #   real address always yields the same fake one. Cardinality and correlation
+  #   survive: a user appearing across the O365, Azure AD, and Oracle feeds
+  #   still correlates to one identity.
+  # sentinel — replace every address with one fixed value. Simpler and more
+  #   obviously redacted, but collapses every user to a single identity.
+  mode: pseudonym
+
+  # example.invalid is reserved by RFC 2606 and can never resolve or receive
+  # mail.
+  pseudonym_domain: example.invalid
+  pseudonym_prefix: user_
+
+  # Used when mode is sentinel.
+  #
+  # NOTE: email.com is a real registered domain, so a redacted address there is
+  # a deliverable address belonging to someone else. Pointing the same local
+  # part at the reserved domain above is the safe equivalent. The requested
+  # value is kept because it was asked for by name; changing the domain here is
+  # a one-line edit.
+  sentinel: redacted@email.com
+
+# Everything below was added by ADR-010, after scanning the export's event
+# content. Counts are occurrences found in sample_data/Splunk_Sample_data.csv.
+# Each rule can be turned off independently.
+rules:
+
+  domain_account:
+    # DOMAIN\account — 839 occurrences. The account names a person; the domain
+    # is one org-level constant, so it is preserved for readability.
+    enabled: true
+
+  windows_sid:
+    # 885 distinct SIDs, 17,329 occurrences. Only domain SIDs (S-1-5-21-...)
+    # identify people; well-known SIDs are platform constants and are preserved,
+    # because redacting them would destroy meaning and protect nobody.
+    enabled: true
+    preserve_well_known: true
+
+  guid:
+    # MailboxGuid, UserObjectId and similar — user and device object handles.
+    enabled: true
+
+  device_hash:
+    # DeviceId and similar long hex digests (32+ hex characters).
+    enabled: true
+
+  mac_address:
+    # 502 occurrences. Replaced within the locally-administered range, which is
+    # never globally assigned to real hardware.
+    enabled: true
+
+  ipv6_address:
+    # 3,439 occurrences. Replaced inside 2001:db8::/32 (RFC 3849, reserved for
+    # documentation).
+    enabled: true
+
+  ipv4_address:
+    # 4,088 private and 39,723 public occurrences. Client IP addresses in the
+    # identity and O365 feeds are personal data — they support location and ISP
+    # inference about named individuals.
+    #
+    # Private addresses are replaced inside 10.0.0.0/8 so they still read as
+    # internal; public addresses are replaced inside 198.18.0.0/15 (RFC 2544,
+    # reserved for benchmarking and never routed). The distinction between
+    # internal and external traffic therefore survives redaction.
+    enabled: true
+
+  phone_number:
+    # 17 occurrences. Replaced inside the 555-01xx range that NANP reserves for
+    # fictional use.
+    enabled: true
+
+  personal_name_field:
+    # Person names appear free-standing in a small set of fields, in both
+    # "Surname, Firstname" and "Firstname Surname" form. Detection is by field
+    # name, not by value shape: shape alone produces false positives such as
+    # Location="Message Body" and ApplicationDisplayName="Microsoft Office",
+    # which are not names and should stay readable.
+    #
+    # displayName is included even though it sometimes holds a service or
+    # computer name ("Okta System", "PC113145-ENERGY") — a computer name is an
+    # asset identifier worth redacting anyway, and the readability cost is small.
+    #
+    enabled: true
+
+    # Fields whose values are reliably a person's name, and are therefore safe
+    # to learn and then replace globally (see learned_literals). displayName and
+    # display are deliberately absent: they also carry service and product names
+    # such as "Active Directory" and "Okta System", and replacing those wherever
+    # they appear would corrupt readable text for no privacy gain. They are still
+    # redacted in the field itself — just not propagated corpus-wide.
+    learn_globally_from:
+      - userDisplayName
+      - LogonUserDisplayName
+      - mailboxDisplayName
+      - actorDisplayName
+      - adminRefResourceName
+      - FileOwner
+      - givenName
+      - surname
+      - familyName
+
+    # Never learned as an identity, whatever field it appears in.
+    never_learn:
+      - active directory
+      - okta system
+      - oci client
+      - not available
+      - system account
+
+    fields:
+      - userDisplayName
+      - LogonUserDisplayName
+      - mailboxDisplayName
+      - actorDisplayName
+      - adminRefResourceName
+      - principalName
+      - FileOwner
+      - displayName
+      - display
+      - givenName
+      - surname
+      - familyName
+      - ownerName
+      - managerName
+
+  account_name_field:
+    # Account names arrive split from their domain (accountName="a.priestley"
+    # beside domainName="tristategt.org"), so no address pattern sees them. The
+    # values are collected from these fields and then replaced wherever they
+    # appear, including in XML element bodies and plain-text Windows event
+    # narrative, which a per-syntax pattern would miss.
+    enabled: true
+    min_length: 4
+    fields:
+      - accountName
+      - TargetUserName
+      - SubjectUserName
+      - samAccountName
+      - sAMAccountName
+      - Account_Name
+      - AccountName
+      - userName
+      - user_name
+      - uid
+
+  learned_literals:
+    # Identity values collected in a first pass over the corpus and then
+    # replaced everywhere, including inside free text such as an email subject.
+    #
+    # This exists because syntax-specific rules kept missing the same facts in
+    # new shapes. Learning the values once and matching them as literals is
+    # syntax-independent: a name found in a JSON field is then also redacted
+    # where it appears in prose.
+    #
+    # Candidates are found with a cheap generic pattern and confirmed against the
+    # learned set, so cost does not grow with the number of learned values.
+    enabled: true
+
+  internal_hostname:
+    # 568 distinct internal hostnames, 5,070 qualified occurrences. Host names
+    # are asset identifiers and, per the strategy, topology data.
+    #
+    # Hostnames are learned from the corpus rather than matched by prefix: the
+    # estate uses more than 30 naming conventions (hq-, ncmc-, conwin11-, sv-,
+    # bcc-, montrose-, and others with no shared prefix at all), so any prefix
+    # list would be silently incomplete. The first label of every internal FQDN
+    # is collected, then both the qualified and the bare form are replaced.
+    #
+    # Only these domains are treated as internal. Vendor hostnames such as
+    # manage.office.com are preserved: redacting them would cost readability and
+    # protect nothing.
+    enabled: true
+    # Replaced both as a suffix of a hostname and standing alone as a field
+    # value, since domainName="tristategt.org" appears on its own.
+    internal_domains:
+      - tristategt.org
+
+preserve:
+  # Structural addresses that carry no information about a real asset.
+  # Redacting them would add noise and protect nobody.
+  ipv4:
+    - 0.0.0.0
+    - 255.255.255.255
+    - 127.0.0.0/8          # loopback
+    - 169.254.0.0/16       # link-local
+  ipv6:
+    - "::1"
+    - "::"
+  # Well-known SIDs: platform constants, not people. S-1-5-21-* is excluded
+  # from this rule because that prefix denotes a domain SID.
+  well_known_sid_pattern: '^S-1-(?:0|1|2|3|4|5)-(?!21-)\d+(?:-\d+)?$'
+
+forbidden_literals:
+  # Values that must never appear in generated output or seeded data, checked as
+  # plain substrings — independently of every rule above.
+  #
+  # This list exists because a rule cannot detect its own blind spot: the
+  # pattern-based audit reported "clean" while four real leaks were present
+  # (Kerberos machine accounts carrying '$', host labels containing '_', GUIDs
+  # preceded by '_' where a word boundary does not exist, and JSON nested inside
+  # a JSON string). A literal search found all four. Keep this list as the
+  # backstop whenever a new export introduces a new identifier shape.
+  #
+  # Only non-sensitive markers belong here, since this file is committed. The
+  # organisation's DNS domain qualifies; specific identifiers such as a tenant
+  # ID or an AD domain SID do not, and go in the file named below.
+  - tristategt.org
+
+# Optional, gitignored: one literal per line, blank lines and # comments ignored.
+# Holds the identifiers that should not themselves be committed.
+forbidden_literals_file: config/forbidden_literals.txt
+
+replacement_ranges:
+  # Recorded so a reader can confirm nothing lands on a real asset.
+  email: example.invalid                # RFC 2606 reserved
+  hostname: example.invalid             # RFC 2606 reserved
+  ipv4_private: 10.0.0.0/8              # RFC 1918 private
+  ipv4_public: 198.18.0.0/15            # RFC 2544 benchmarking, never routed
+  ipv6: 2001:db8::/32                   # RFC 3849 documentation
+  mac: 02:00:00:00:00:00/locally-administered
+  phone: +1-555-555-01xx                # NANP fictional range
+
+# Applied to documents only, where the stable pattern is what remediation acts
+# on. Not applied to seeded event data, which keeps its content.
+document_patterns:
+  fully_qualified_hostname: "{host}"
+  guid: "{guid}"
+  timestamp: "{timestamp}"
+  hash: "{hash}"
+  long_digits: "{digits}"

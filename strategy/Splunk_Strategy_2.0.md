@@ -1,0 +1,2567 @@
+# Splunk Strategy
+
+**Tri-State Generation and Transmission Association**
+**Revision 2.0** — RBAC section overhauled (supersedes Revision 1.0)
+**Author: Reza Hosseiny, Vice President, Technical Services**
+
+> This document does not include BES Cyber System Information and is intended for Tri-State internal use only.
+
+---
+
+## Contents
+
+- [Introduction](#introduction)
+- [Executive Summary](#executive-summary)
+- [Purpose, Scope & Audience](#purpose-scope-audience)
+  - [Purpose](#purpose)
+  - [Scope](#scope)
+  - [Audience](#audience)
+- [Vision](#vision)
+- [Strategic Intent & Design Choices](#strategic-intent-design-choices)
+  - [Objectives](#objectives)
+  - [Key Strategic Design Choices](#key-strategic-design-choices)
+- [Principles](#principles)
+- [Governance & Operating Model](#governance-operating-model)
+  - [Governance](#governance)
+  - [Governance structure and decision rights](#governance-structure-and-decision-rights)
+  - [Governance controls](#governance-controls)
+  - [Operating Model](#operating-model)
+  - [Core roles](#core-roles)
+  - [Standard workflows](#standard-workflows)
+  - [Success measures](#success-measures)
+- [High-Level Architecture Strategy](#high-level-architecture-strategy)
+  - [Target Topology: Stretched Active–Active Multi-Site Cluster](#target-topology-stretched-activeactive-multi-site-cluster)
+    - [Site Roles](#site-roles)
+  - [Component Role Strategy (Separation of Functions)](#component-role-strategy-separation-of-functions)
+  - [Server Role Isolation Rules (Role Mixing Restrictions)](#server-role-isolation-rules-role-mixing-restrictions)
+    - [Indexers](#indexers)
+    - [Search Heads](#search-heads)
+    - [Management Plane (Utility Server)](#management-plane-utility-server)
+    - [Ingestion Plane](#ingestion-plane)
+    - [Tenant / Dedicated Search Heads](#tenant-dedicated-search-heads)
+  - [Network Zoning & Zero Trust Architecture](#network-zoning-zero-trust-architecture)
+  - [Scalability & Multi-Tenancy Strategy](#scalability-multi-tenancy-strategy)
+- [Availability, Resiliency & DR Strategy](#availability-resiliency-dr-strategy)
+  - [Clustering & Replication Logic (N–1 Baseline)](#clustering-replication-logic-n1-baseline)
+  - [Failure and Partition Scenarios](#failure-and-partition-scenarios)
+- [Data Strategy & Onboarding](#data-strategy-onboarding)
+  - [Data Classification & Governance](#data-classification-governance)
+  - [Data Classes (Sensitivity)](#data-classes-sensitivity)
+- [Indexing, Retention & Lifecycle Management](#indexing-retention-lifecycle-management)
+  - [Schema](#schema)
+  - [Governance Prefix (Mandatory, 3-letter codes)](#governance-prefix-mandatory-3-letter-codes)
+    - [Data Class (class) – STRICTLY DEFINED](#data-class-class-strictly-defined)
+    - [Compliance (compliance) – DEFINABLE by Data Governance Council](#compliance-compliance-definable-by-data-governance-council)
+    - [Domain (domain) – DEFINABLE by Data Governance Council](#domain-domain-definable-by-data-governance-council)
+    - [Content (content) – DEFINABLE by Data Governance Council](#content-content-definable-by-data-governance-council)
+    - [Optional Detail (Flexible)](#optional-detail-flexible)
+    - [Retention Suffix (Mandatory)](#retention-suffix-mandatory)
+    - [Real-world naming examples](#real-world-naming-examples)
+  - [Segregation Rules](#segregation-rules)
+  - [Retention & Lifecycle Strategy](#retention-lifecycle-strategy)
+  - [Lifecycle definitions:](#lifecycle-definitions)
+  - [Data Catalog](#data-catalog)
+  - [Metadata Standards (source, sourcetype, host)](#metadata-standards-source-sourcetype-host)
+    - [sourcetype standard](#sourcetype-standard)
+    - [source standard](#source-standard)
+    - [host standard](#host-standard)
+    - [Standard ownership and maintenance](#standard-ownership-and-maintenance)
+  - [Data Quality & Timestamping](#data-quality-timestamping)
+  - [Field Naming & CIM Alignment](#field-naming-cim-alignment)
+    - [Data Dictionary Mandate](#data-dictionary-mandate)
+    - [Governance & Approval](#governance-approval)
+    - [Naming Standards](#naming-standards)
+  - [The Sandbox Protocol (Temporary Innovation)](#the-sandbox-protocol-temporary-innovation)
+    - [Scope & Purpose](#scope-purpose)
+    - [Relaxed Standards](#relaxed-standards)
+    - [Restrictions](#restrictions)
+- [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
+  - [Overview](#overview)
+  - [Mapping to Splunk primitives](#mapping-to-splunk-primitives)
+  - [Conceptual model](#conceptual-model)
+  - [Composition convention: one Business Role per user](#composition-convention-one-business-role-per-user)
+  - [IdP group to role mapping](#idp-group-to-role-mapping)
+  - [Capabilities](#capabilities)
+    - [Sensitive capability tier](#sensitive-capability-tier)
+    - [Capability changes across Splunk releases](#capability-changes-across-splunk-releases)
+    - [Built-in roles](#built-in-roles)
+  - [Workspace bundles](#workspace-bundles)
+  - [Authoritative configuration paths](#authoritative-configuration-paths)
+  - [Bundle catalog sizing](#bundle-catalog-sizing)
+  - [Local accounts](#local-accounts)
+  - [Service accounts](#service-accounts)
+  - [Compliance monitoring](#compliance-monitoring)
+  - [Change management](#change-management)
+  - [Glossary](#glossary)
+- [Security, Privacy & Compliance](#security-privacy-compliance)
+  - [Data Protection & Segregation](#data-protection-segregation)
+  - [Access Control & Identity](#access-control-identity)
+  - [Network Security & Encryption](#network-security-encryption)
+  - [Regulatory Compliance & Auditability](#regulatory-compliance-auditability)
+  - [Privacy & Data Minimization](#privacy-data-minimization)
+- [Performance, Capacity, Sizing & Cost Awareness](#performance-capacity-sizing-cost-awareness)
+- [App, Content & Use Case Development](#app-content-use-case-development)
+  - [Objectives](#objectives-1)
+  - [Use Case Intake & Prioritization](#use-case-intake-prioritization)
+  - [Content Standards (Searches, Alerts, Dashboards, Knowledge Objects)](#content-standards-searches-alerts-dashboards-knowledge-objects)
+    - [Searches & Alerts](#searches-alerts)
+    - [Dashboards & Reports](#dashboards-reports)
+  - [Other Splunk Entities Catalog and Naming Standards](#other-splunk-entities-catalog-and-naming-standards)
+    - [In-scope entities](#in-scope-entities)
+    - [Naming convention](#naming-convention)
+    - [Prefixes](#prefixes)
+    - [Suffixes](#suffixes)
+    - [Management rule](#management-rule)
+  - [Knowledge Objects (KOs)](#knowledge-objects-kos)
+  - [Knowledge Object Sharing & Multi-Tenancy](#knowledge-object-sharing-multi-tenancy)
+    - [Scope & Sharing](#scope-sharing)
+    - [Tenant / Dedicated Search Heads](#tenant-dedicated-search-heads-1)
+  - [Apps & Technology Add-ons (TAs)](#apps-technology-add-ons-tas)
+    - [Splunkbase Apps](#splunkbase-apps)
+    - [Internal Apps](#internal-apps)
+  - [Custom Commands, Custom Code, and Apps](#custom-commands-custom-code-and-apps)
+    - [Guiding Principles](#guiding-principles)
+  - [Environment & Configuration-as-Code Guardrails](#environment-configuration-as-code-guardrails)
+    - [Where custom code is allowed](#where-custom-code-is-allowed)
+    - [Source control and documentation](#source-control-and-documentation)
+    - [Languages, runtimes, and platforms](#languages-runtimes-and-platforms)
+    - [Data access, whitelists, configuration, and libraries](#data-access-whitelists-configuration-and-libraries)
+    - [Promotion path](#promotion-path)
+    - [Development & Approval](#development-approval)
+    - [Performance expectations and guardrails](#performance-expectations-and-guardrails)
+    - [Secrets and Configuration handling rules](#secrets-and-configuration-handling-rules)
+    - [Support and ownership](#support-and-ownership)
+    - [Splunkbase apps vs. internal apps vs. one-off scripts](#splunkbase-apps-vs-internal-apps-vs-one-off-scripts)
+- [Operations, Monitoring & Maintenance (Platform Operations)](#operations-monitoring-maintenance-platform-operations)
+  - [Operational responsibilities](#operational-responsibilities)
+  - [Monitoring and alerting expectations](#monitoring-and-alerting-expectations)
+  - [Maintenance and lifecycle management](#maintenance-and-lifecycle-management)
+  - [Incident, problem, and recovery management](#incident-problem-and-recovery-management)
+  - [Access, exceptions, and periodic review support](#access-exceptions-and-periodic-review-support)
+  - [Operational documentation and runbooks](#operational-documentation-and-runbooks)
+  - [Continuous improvement](#continuous-improvement)
+- [Interfaces and Data Movements](#interfaces-and-data-movements)
+  - [Core principles for interfaces and data movement](#core-principles-for-interfaces-and-data-movement)
+  - [Inbound access approvals and periodic review](#inbound-access-approvals-and-periodic-review)
+  - [Cross-zone pattern](#cross-zone-pattern)
+    - [Recommended DMZ broker patterns](#recommended-dmz-broker-patterns)
+  - [Outbound interfaces](#outbound-interfaces)
+  - [Innovation-enabled interfaces](#innovation-enabled-interfaces)
+- [AI Training and Inference](#ai-training-and-inference)
+  - [Separation of planes](#separation-of-planes)
+  - [Training rules](#training-rules)
+  - [Inference rules](#inference-rules)
+- [Change & Release Management](#change-release-management)
+  - [Scope](#scope-1)
+  - [Change classification](#change-classification)
+  - [Environments and promotion path](#environments-and-promotion-path)
+  - [Testing and validation requirements](#testing-and-validation-requirements)
+  - [Release planning and scheduling](#release-planning-and-scheduling)
+  - [Approvals and decision rights](#approvals-and-decision-rights)
+  - [Rollback and recovery expectations](#rollback-and-recovery-expectations)
+  - [Configuration management and traceability](#configuration-management-and-traceability)
+  - [Third-party apps and custom development controls](#third-party-apps-and-custom-development-controls)
+  - [AI-related change controls](#ai-related-change-controls)
+  - [Post-release review and continuous improvement](#post-release-review-and-continuous-improvement)
+- [Training, Enablement & Adoption](#training-enablement-adoption)
+  - [Role-based training paths](#role-based-training-paths)
+  - [Additional enablement considerations](#additional-enablement-considerations)
+- [Roadmap & Phased Implementation Plan](#roadmap-phased-implementation-plan)
+  - [Phase 0: Capability readiness and mobilization](#phase-0-capability-readiness-and-mobilization)
+  - [Phase 1: Infrastructure and topology design](#phase-1-infrastructure-and-topology-design)
+  - [Phase 2: Hardware procurement and environment strategy](#phase-2-hardware-procurement-and-environment-strategy)
+  - [Phase 3: Test implementation build and validation](#phase-3-test-implementation-build-and-validation)
+  - [Phase 4: Data architecture and onboarding framework](#phase-4-data-architecture-and-onboarding-framework)
+  - [Phase 5: Core production build and hardening](#phase-5-core-production-build-and-hardening)
+  - [Phase 6: Initial data onboarding and priority use cases](#phase-6-initial-data-onboarding-and-priority-use-cases)
+  - [Phase 7: Production rollout and scaling](#phase-7-production-rollout-and-scaling)
+  - [Phase 8: Optimization and continuous improvement](#phase-8-optimization-and-continuous-improvement)
+  - [Phase 9: AI and machine learning enablement](#phase-9-ai-and-machine-learning-enablement)
+  - [Strategic note on sequencing](#strategic-note-on-sequencing)
+- [Risk Management & Assumptions](#risk-management-assumptions)
+  - [Risks](#risks)
+  - [Assumptions](#assumptions)
+- [KPIs, Value Realization & FinOps Metrics](#kpis-value-realization-finops-metrics)
+  - [Minimum KPI categories to define](#minimum-kpi-categories-to-define)
+  - [Minimum Ops metrics to define](#minimum-ops-metrics-to-define)
+  - [Strategic guidance](#strategic-guidance)
+
+---
+
+# Introduction
+
+Tri-State Generation and Transmission Association is increasingly dependent on high-quality operational and security telemetry from both OT and IT environments to maintain system reliability, meet regulatory obligations, and support data-driven decision making. Splunk has been chosen as the strategic platform for collecting, normalizing, analyzing, and visualizing this telemetry across the enterprise.
+
+This Splunk Strategy document defines how Tri-State will design, operate, and govern the Splunk platform so that it becomes a reliable, secure, and sustainable capability rather than just another tool. It establishes the guiding principles, architectural patterns, and governance mechanisms that will shape all future Splunk-related decisions, from infrastructure topology and role separation to data onboarding, index lifecycle, and Role Based Access Control (RBAC).
+
+The document is intentionally prescriptive at the principle level, while leaving room for engineering teams to innovate within those boundaries.
+
+This document does not include BES Cyber System Information and is intended for internal Tri-State use only.
+
+# Executive Summary
+
+Tri-State is adopting Splunk as a strategic platform for operational visibility and cybersecurity across both OT and IT environments. This document defines how Splunk will be designed, governed, and operated so it becomes a reliable, secure, and sustainable enterprise service rather than a one-off tool.
+
+At a high level, the strategy establishes: a resilient, multi-site architecture, clear separation of duties across data, search, management, and ingestion layers, a governed data model and index naming standard that encode classification and retention, and a Role-Based Access Control (RBAC) model built directly on that structure. It also introduces a controlled sandbox approach so teams can innovate safely without bypassing governance.
+
+Together, these elements ensure that Splunk supports Tri-State’s reliability, compliance, and security obligations while still providing enough flexibility for future use cases and growth.
+
+# Purpose, Scope & Audience
+
+## Purpose
+
+The purpose of this document is to establish a clear, unified strategy for the design, deployment, and governance of the Splunk platform at Tri-State. It:
+
+- Defines the architectural patterns and design choices that will guide Splunk implementations.
+
+- Establishes data governance standards, including classification, index naming, and retention lifecycle.
+
+- Describes the access control model and supporting RBAC structures that protect sensitive OT and security data.
+
+- Provides a common reference for future standards, runbooks, and implementation projects.
+
+This document is the strategic foundation for Splunk at Tri-State. It is not an implementation guide or configuration manual.
+
+## Scope
+
+This strategy applies to:
+
+- All production Splunk environments operated by or on behalf of Tri-State.
+
+- Both OT (e.g., SCADA, EMS, ICS, field telemetry) and IT (e.g., infrastructure, applications, identity, business systems) data sources onboarded into Splunk.
+
+- All Splunk components participating in the production platform, including indexers, search heads, cluster managers, license managers, monitoring consoles, deployment servers, heavy/universal forwarders, and related integrations.
+
+- Supporting governance mechanisms, such as data cataloging, index lifecycle management, RBAC, sandbox usage, and Zero Trust-aligned network zoning.
+
+Out of scope for this document:
+
+- Detailed server build procedures, OS hardening baselines, and patch management processes.
+
+- Detailed Splunk configuration (e.g., specific props.conf/transforms.conf stanzas, search queries, dashboards).
+
+- Non-production or lab environments beyond the high-level principles defined in the Sandbox Protocol and environment strategy.
+
+## Audience
+
+The primary audience for this document includes:
+
+- **Senior leadership** responsible for reliability, cybersecurity, and regulatory compliance.
+
+- **Platform owners and architects** responsible for Splunk infrastructure design and lifecycle.
+
+- **OT and IT engineering teams** responsible for onboarding and maintaining data sources.
+
+- **Security, compliance, and audit teams** relying on Splunk data and RBAC controls for monitoring and evidence.
+
+- **Operations/NOC and SOC personnel** who use Splunk as a core tool for situational awareness and incident response.
+
+Secondary audiences include project managers, application owners, and other stakeholders who need to understand how Splunk fits into Tri-State’s broader operational and compliance ecosystem
+
+# Vision
+
+Tri-State’s Splunk platform will operate as a reliable, secure, and sustainable enterprise service that turns OT and IT telemetry, logs and system events into trusted operational visibility and cybersecurity outcomes. The vision is a single, governed log capability that supports system reliability, regulatory obligations, and data-driven decision making, while still leaving room for teams to innovate safely within defined boundaries.
+
+# Strategic Intent & Design Choices
+
+## Objectives
+
+- Establish Splunk as an enterprise capability with consistent design, operations, and governance that can scale across OT and IT.
+
+- Meet reliability, security, and compliance needs by enforcing separation of duties, governed data onboarding, and audit-ready access control.
+
+- Enable innovation without bypassing governance by providing a controlled sandbox approach and clear promotion paths from experimentation to production.
+
+- Ensure cross-domain visibility while respecting sensitivity walls and regulated-data isolation using the data classification model, index naming, and RBAC.
+
+## Key Strategic Design Choices
+
+- Resilient, multi-site architecture using a stretched active–active multi-site cluster to meet high availability and disaster recovery needs.
+
+- Clear separation of duties across data, search, management, and ingestion planes to avoid resource contention and simplify operations.
+
+- Controlled ingestion boundary using the Ingestion Plane (Edge Server) as the termination point for raw feeds, with only forwarder traffic permitted directly to indexers.
+
+- Zero Trust-aligned network zoning with deny-by-default traffic enforcement, governed port openings, controlled administrative access, and enforced security measures where supported.
+
+- Governed data model and index naming that encodes classification and retention, enabling consistent enforcement of compliance and sensitivity boundaries.
+
+- RBAC that is built directly on the governed data structure (classes, compliance drivers, domains) to ensure least-privilege access and auditability.
+
+# Principles
+
+- Reliability, resilience, and compliance are design requirements, not optional features.
+
+- Design for operational simplicity, repeatability, and supportability.
+
+- Apply Zero Trust by default and deny-by-default flows, explicit allowlists, and strong identity-based access.
+
+- Use least privilege and separation of duties across platform planes and administrative functions.
+
+- Governed onboarding is mandatory. Ownership, classification, metadata standards, and documented intent are required for production ingestion.
+
+- Preserve evidence of integrity, raw events remain immutable, enrichment and derived outputs are additive.
+
+- Enable safe innovation, experimentation is permitted, but time-bounded, auditable, and never a bypass around production controls.
+
+- Standardize and automate wherever possible to reduce drift, improve consistency, and increase reliability.
+
+- Practice financial responsibility by designing for cost transparency and predictability, using guardrails like tiering, quotas, and retention, and continuously optimizing spend without compromising reliability or security.
+
+# Governance & Operating Model
+
+## Governance
+
+Governance ensures the Splunk platform remains secure, compliant, reliable, resilient, and operationally sustainable while enabling innovation through controlled patterns and documented exceptions.
+
+## Governance structure and decision rights
+
+**Platform Owner**
+
+- Accountable for the Splunk service, strategic roadmap, service health, and alignment to enterprise architecture and security expectations.
+
+**Splunk Platform Team**
+
+- Owns architecture standards, baseline configurations, operational procedures, platform engineering, upgrades, and day-to-day reliability and performance.
+
+**Splunk Data Governance and Data Stewards**
+
+- Own data onboarding policy, classification mapping, metadata standards, and the approved registry of sources and sourcetypes.
+
+- Approve field mapping and validation requirements prior to production onboarding.
+
+**Security and Compliance**
+
+- Approves zoning and network-flow exceptions, regulated-data handling requirements, RBAC design, and periodic access reviews.
+
+- Ensures audit logging, evidence integrity, and regulatory obligations are met.
+
+**Business/Data Owners**
+
+- Accountable for data quality, continued business need, and approving new sources, use cases, and access requests.
+
+## Governance controls
+
+**Approval gates**
+
+Production ingestion requires defined ownership, classification, sourcetype and source definitions, and approved onboarding documentation.
+
+**Periodic review**
+
+Inbound interfaces, cross-zone flows, and privileged access are reviewed on a scheduled cadence to validate business need and compliance.
+
+**Exception management**
+
+- Exceptions are allowed only when documented, risk-assessed, time-bounded, and approved.
+
+- Exceptions must include a rollback plan and periodic re-approval.
+
+**Audit and traceability**
+
+Administrative actions and access to sensitive or regulated data are logged and retained according to retention standards.
+
+## Operating Model
+
+The operating model treats Splunk as an enterprise service with defined roles, standard workflows, and measurable operational outcomes.
+
+## Core roles
+
+**Platform Operations**
+
+Runs the platform 24x7 or as required, manages availability and performance, operates upgrades, and executes incident/problem management.
+
+**Platform Engineering**
+
+Implements architecture patterns, automation, standard onboarding pipelines, and platform enhancements.
+
+**Data Owners and Technical Owners**
+
+Own the originating systems and are accountable for data correctness, change notifications, and coordinating onboarding and lifecycle changes.
+
+**Data Stewards**
+
+Validate metadata standards, classification, field mapping, and onboarding readiness; enforce governance rules.
+
+**Security and Compliance**
+
+Reviews and approves access, cross-zone flows, exceptions, and audit requirements; supports assessments and audits.
+
+## Standard workflows
+
+**Data onboarding (production)**
+
+- Intake request, classification and ownership assignment, metadata definition (source, sourcetype, host strategy), field mapping, testing/validation, approval, production enablement, and post-onboarding review.
+
+**Sandbox and innovation**
+
+- Time-bounded onboarding allowed under strict rules (short retention, explicit expiration, controlled access, and prohibited regulated/highly sensitive data unless explicitly approved).
+
+**Access management**
+
+- RBAC requests tied to business roles, data classes, and domains; privileged access is time-bound where possible and reviewed periodically.
+
+**Change management**
+
+- Standard change control for platform upgrades, parsing changes, index strategy changes, and knowledge object changes; emergency change procedures defined for operational incidents.
+
+**Incident and resilience operations**
+
+- Defined on-call and escalation paths, runbooks, and recovery procedures; regular resilience testing and validation of monitoring/alerting.
+
+**Service management**
+
+- Define and track service KPIs and SLOs (availability, ingestion latency, search performance, onboarding lead time, incident MTTR), and conduct regular service reviews with stakeholders.
+
+## Success measures
+
+- Reduced time to onboard new data sources safely.
+
+- Consistent RBAC and segregation of regulated data.
+
+- Improved operational visibility and faster incident response outcomes.
+
+- Predictable platform performance and reduced operational risk from drift and unmanaged integrations.
+
+# High-Level Architecture Strategy
+
+## Target Topology: Stretched Active–Active Multi-Site Cluster
+
+To meet High Availability (HA) and Disaster Recovery (DR) requirements, Splunk will be deployed as a **stretched, active–active multi-site indexer cluster** spanning at least two data centers:
+
+### Site Roles
+
+**Site P (Primary – 5 nodes)**
+
+- Hosts the **management plane**, **ingestion control**, and the **primary search UI endpoint**.
+
+- Indexers in Site P are fully active participants in indexing and searching.
+
+**Site B (Secondary – 3 nodes)**
+
+- Hosts a **search UI endpoint** and indexers that fully participate in data replication **and** searching.
+
+- Acts as the designated **secondary user access site** and becomes the primary user access site if Site P is unavailable.
+
+- Provisions shall be defined for quick recovery of the management plane (servers 4 and 5) at the secondary site during an emergency
+
+Key characteristics:
+
+The **indexer and search fabric is active–active**:
+
+- All indexers in both sites ingest and store data.
+
+- All search heads can query all indexers across both sites.
+
+- From a **user access and operations** perspective, Site P is treated as the **preferred entry point**, with Site B positioned as the secondary/DR user access site.
+
+- As the platform scales, additional indexers and search heads are added to both sites while preserving this stretched, active–active topology.
+
+## Component Role Strategy (Separation of Functions)
+
+The architecture follows strict **separation of functions** to avoid resource contention and simplify operations. Each server group is dedicated to a specific plane:
+
+| Server Group     | Role         | Site                            | Strategy & Purpose                                                                                                                                                                                                                                                                                                                                                                     |
+|------------------|--------------|---------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Data Plane       | Indexers     | P & B (2 in P, 2 in B baseline) | Pure data storage and retrieval. No search head, management, or ingestion roles are allowed on indexers. All indexers are active participants in the stretched cluster.                                                                                                                                                                                                                |
+| Search Plane     | Search Heads | P & B (1 in P, 1 in B baseline) | Provide user interface and search execution. All search heads can query all indexers. Site P is the preferred UI endpoint; Site B is available for regional/DR access. Target state is a Search Head Cluster spanning both sites as demand grows.                                                                                                                                      |
+| Management Plane | Utility      | P only                          | Hosts Indexer Cluster Master, License Master Monitoring Console and Search Head Cluster Deployer. Serves as the “brain” of the cluster. Warm-standby capacity exists in Site B (templates/backups and a documented failover runbook). The Deployment Server role is explicitly excluded from this host.                                                                                |
+| Ingestion Plane  | Edge Server  | P only                          | Hosts Deployment Server and Heavy Forwarder / ingestion gateway functions. Acts as the controlled termination point for raw Syslog, NetFlow, API/HTTP feeds and similar protocols before data is forwarded on to the indexer cluster. Only Splunk Forwarder traffic is permitted to reach indexers directly. The Edge Server must not host Cluster Master or Monitoring Console roles. |
+
+All future scaling (capacity, volume, or new use cases) should follow these planes, rather than mixing roles on existing nodes.
+
+## Server Role Isolation Rules (Role Mixing Restrictions)
+
+To maintain performance, reliability, and security, certain Splunk roles **must not be mixed** on the same server in production. The following rules apply.
+
+### Indexers
+
+Indexers are **data-only** nodes.
+
+Indexers must not host:
+
+- Search Head roles (no UI, no user-facing searches), including Search Head Cluster Deployer
+
+- Cluster Master, License Master, or Monitoring Console.
+
+- Deployment Server.
+
+- Heavy Forwarder or other ingestion gateway functions.
+
+- Non-Splunk application workloads (databases, application servers, web servers, etc.).
+
+Intent: keep indexers dedicated to indexing and search servicing, ensuring predictable performance and limiting operational blast radius.
+
+### Search Heads
+
+Search Heads are **search and UX-only** nodes.
+
+Search Heads must not:
+
+- Act as indexers or participate in the indexer cluster.
+
+- Host Cluster Master, License Master, Monitoring Console, or Deployment Server roles nor Search Head Cluster Deployer
+
+- Perform high-volume Heavy Forwarder duties (protocol gateways, parsing for large feeds).
+
+- Share resources with non-Splunk workloads that compete heavily for CPU, memory, or disk.
+
+Limited exceptions for small, non-production environments do not change this **production standard**.
+
+### Management Plane (Utility Server)
+
+The Utility server is the **control-plane** node.
+
+The Management Plane may host:
+
+- Cluster Master
+
+- License Master
+
+- Monitoring Console
+
+- Search Head Cluster Deployer
+
+The Management Plane must **NOT**:
+
+- Run indexer roles or store production indexes.
+
+- Act as a general user-facing Search Head (beyond the Monitoring Console UI).
+
+- Host Heavy Forwarder roles for production ingestion volume.
+
+- Combine Cluster Master and Deployment Server roles on the same server.
+
+- Combine Monitoring Console and Deployment Server roles on the same server.
+
+Intent: ensure that cluster control (both Indexer and Search Head), licensing, and monitoring remain responsive and isolated from data and search workloads, and that management functions are separated from large-scale configuration distribution.
+
+### Ingestion Plane
+
+The Edge server is the **ingestion and configuration gateway**.
+
+It is dedicated to:
+
+- Deployment Server responsibilities (forwarder and app configuration).
+
+- Heavy Forwarder / protocol gateway functions (for example, Syslog aggregation, NetFlow, API/HTTP event collection, DB inputs).
+
+#### Ingestion Plane restrictions:
+
+**The Ingestion Plane must NOT:**
+
+- Host indexer roles or be part of the indexer cluster.
+
+- Serve as a general user Search Head for interactive searches.
+
+- Host Cluster Master, License Master, or Monitoring Console roles nor Search Head Cluster Deployer
+
+**Deployment Server must remain on this dedicated Ingestion Plane server and must not be combined on the same host with Cluster Master or Monitoring Console.**
+
+#### Traffic rules:
+
+**Allowed direct-to-indexer traffic:**
+
+- Only **Splunk Forwarder traffic** (Universal Forwarders or intermediate Heavy Forwarders) may send data directly to the indexer tier (typically via a load balancer).
+
+**Disallowed direct-to-indexer traffic:**
+
+- **Raw Syslog**, **NetFlow**, **SNMP traps**, **API/HTTP event feeds**, database inputs, and other non-forwarder integrations must **not** be pointed directly at indexers.
+
+- These integrations must terminate on the **Ingestion Plane (Edge Server)**, which then forwards processed data on to the indexers.
+
+This design provides:
+
+- A controlled **ingestion DMZ** and security boundary.
+
+- **Rate limiting, filtering, and normalization** of high-volume or noisy sources.
+
+- A single place to manage complex **parsing, sourcetyping, and routing** before data enters the indexer cluster.
+
+- Cribl or other type of ingestion control?
+
+### Tenant / Dedicated Search Heads
+
+- Where dedicated/tenant Search Heads are deployed for specific business units or tenants, they must not Host indexer roles or Cluster Master functions.
+
+- Act as Deployment Servers or Heavy Forwarders for the broader platform.
+
+- Bypass central RBAC or platform configuration standards.
+
+They remain **under the control of the central Splunk Platform team**, even when tenant admins have delegated permissions within their own apps and data scope.
+
+## Network Zoning & Zero Trust Architecture
+
+Splunk infrastructure adheres to a **Zero Trust** network model:
+
+**Isolation Mandate**
+
+All Splunk components reside in dedicated **management subnets/VLANs** that are separate from user endpoints and general server networks.
+
+**Access Control**
+
+Traffic is enforced at Layer 3 (firewalls/ACLs). The default posture is **deny by default**, with only specific, documented ports and flows permitted (for example, HTTPS for UI, management API, and forwarder ingestion).
+
+**Port Governance**
+
+Opening new ports or flows is allowed only after formal review and approval by Security and the Splunk Platform team.
+
+**Administrative Access**
+
+Direct SSH/RDP from user subnets to Splunk infrastructure is prohibited. All administrative access must traverse a **Jump Host or Privileged Access Management (PAM)** solution.
+
+**Encryption**
+
+All user access and inter-Splunk communication use **TLS-secured endpoints** where supported (UI, management interfaces, and forwarder traffic where feasible).
+
+## Scalability & Multi-Tenancy Strategy
+
+**Approved Multi-Tenancy Pattern: Dedicated Tenant Search Heads**
+
+Where justified (for example, HR, Finance, highly regulated business units), the platform may host **additional dedicated Search Head instances or Search Head Clusters** for specific tenants.
+
+**Shared Data Plane**
+
+All tenant search heads use the **shared indexer cluster**, maintaining a unified data lake while preventing data silos and unnecessary infrastructure duplication.
+
+**Isolation & Control**
+
+- Tenants are isolated primarily via **Role-Based Access Control (RBAC)** and dedicated index naming (for example, `finance_*`, `hr_*`).
+
+- Default tenant roles are locked to their approved index sets and capabilities.
+
+- Platform administration for all search heads and indexers remains with the **central Splunk Platform team**.
+
+- Dedicated tenant support/admin teams are permitted, but their elevated access is explicitly approved, time-bounded where appropriate, and governed under the central RBAC model.
+
+**Exception-Based Use**
+
+Dedicated tenant search heads are treated as an **exception pattern** for well-justified business or regulatory needs, not as the default approach for every team.
+
+# Availability, Resiliency & DR Strategy
+
+## Clustering & Replication Logic (N–1 Baseline)
+
+To ensure data durability and search resiliency, the platform uses a **stretched, active–active multi-site indexer cluster** with a defined baseline configuration:
+
+- **Total Indexers (N):** 4 in the initial design (2 per site).
+
+- **Replication Factor (RF):** 3.
+
+- **Search Factor (SF):** 3.
+
+Strategic intent:
+
+- Each event is stored on **three separate indexers** distributed across the sites.
+
+- All search heads have visibility into all indexers and participate in searching across the full data set.
+
+- The environment can tolerate the loss of an indexer and remain search-capable without data loss; in the event of a full site outage, data remains recoverable with a temporary reduction in redundancy until capacity is restored.
+
+- As the platform grows, the total indexer count and RF/SF settings are periodically reviewed and adjusted to maintain an **N–1 or better** resiliency posture.
+
+Where appropriate, **site-aware replication** (site replication factor and site search factor) is configured to ensure that copies of critical data exist in both sites.
+
+## Failure and Partition Scenarios
+
+**Failure of Site P (preferred user access site)**
+
+- The cluster continues to function using Site B indexers and search head.
+
+- Users are redirected to the Site B UI by DNS, load balancer, or documented endpoint changes.
+
+- Once Site P is restored, the cluster is rebalanced and failback is performed according to an approved runbook.
+
+**Failure of Site B**
+
+- Primary operations remain at Site P with no user-facing disruption.
+
+- Replication factor may be temporarily reduced while Site B is rebuilt or brought back online.
+
+- No data loss is expected; redundancy is reduced until restoration.
+
+**Network Partition / Split-Brain Risk**
+
+- The **Cluster Manager in Site P** is the system of record for the cluster.
+
+- Network and routing design, combined with documented operational procedures, defines which site remains authoritative in the event of a partition.
+
+- Only the designated authoritative side continues to accept writes during a partition, preventing split-brain behavior and ensuring data consistency.
+
+# Data Strategy & Onboarding
+
+## Data Classification & Governance
+
+To ensure security, compliance, and alignment with organizational standards, all data ingested into Splunk must be mapped to the Enterprise Data Governance Council’s Data Sensitivity Classes and tagged with relevant Compliance Drivers.
+
+## Data Classes (Sensitivity)
+
+**Class 1 – Public**
+
+External or open data (for example, weather, markets). Low sensitivity.
+
+**Class 2 – Enterprise**
+
+Internal business data (for example, ERP, project planning). Standard confidentiality.
+
+**Class 3 – Operational**
+
+Operational business data (for example, outage tickets, work orders, IT events). Restricted to operations/NOC and related functions.
+
+**Class 4 – Control**
+
+OT/ICS control and telemetry (for example, SCADA, setpoints). High sensitivity. Restricted to OT/engineering and designated stakeholders.
+
+**Class 5 – Restricted**
+
+Critical security, legal, and highly sensitive design/topology data. Maximum security. Access is on a strict “need to know” basis.
+
+Each onboarded data source must have:
+
+- A **Data Class** (1–5)
+
+- One or more **Compliance Drivers** (for example, PCI, NERC CIP, HIPAA, GDPR, or “non” for non-regulated)
+
+# Indexing, Retention & Lifecycle Management
+
+Indexes use a strict multi-segment naming scheme. The name is divided into a governance-oriented **prefix**, an optional detail segment, and a retention-oriented **suffix**.
+
+## Schema
+
+`[class]_[compliance]_[domain]_[content]_[optional_detail]_[retention]`
+
+## Governance Prefix (Mandatory, 3-letter codes)
+
+Each field in the prefix is a three-letter, lowercase abbreviation.
+
+### Data Class (class) – STRICTLY DEFINED
+
+These map directly to the Data Classification Framework:
+
+- pub – Class 1 (Public)
+
+- ent – Class 2 (Enterprise)
+
+- ops – Class 3 (Operational)
+
+- ctl – Class 4 (Control / OT)
+
+- res – Class 5 (Restricted / Security)
+
+### Compliance (compliance) – DEFINABLE by Data Governance Council
+
+Compliance drivers, defined in the Data Catalog before ingestion. Examples:
+
+- pci – Payment Card Industry
+
+- cip – NERC CIP
+
+- hpa – HIPAA
+
+- gdr – GDPR
+
+- non – Non-regulated / general
+
+### Domain (domain) – DEFINABLE by Data Governance Council
+
+High-level functional area, defined in the Data Catalog. Examples:
+
+- sec – Security
+
+- ics – Industrial Control Systems (OT)
+
+- inf – Infrastructure (IT)
+
+- app – Application / business logic
+
+### Content (content) – DEFINABLE by Data Governance Council
+
+Descriptive name of the data source type. Examples:
+
+- win – Windows event logs
+
+- fwl – Firewall traffic
+
+- scd – SCADA telemetry
+
+- dns – DNS queries
+
+- web – Web access logs
+
+- lin – Linux Logs
+
+- ndl – network device logs (sw, rtr)
+
+- wfl – windows firewall logs
+
+- lfl – linux firewall logs
+
+### Optional Detail (Flexible)
+
+- Used when multiple indexes exist for the same governance category (for example, separating by region, environment, or app name).
+
+- Uses lower_snake_case alphanumeric (for example, na, billing_app, east_plant).
+
+### Retention Suffix (Mandatory)
+
+Retention categories are encoded in the suffix:
+
+- `_s` – Short term
+
+- `_m` – Medium term
+
+- `_l` – Long term
+
+Proposed defaults:
+
+- `_s` – Short Term: 30 days total (7 days hot / 23 days cold). Used for troubleshooting, verbose debug logs, and high-volume metrics.
+
+- `_m` – Medium Term: 1 year total (30 days hot / 335 days cold). Used for operational lookback, general IT logs, and non-regulated business data.
+
+- `_l` – Long Term: 3 years total (90 days hot / 3 years cold . Used for regulated data (PCI/NERC), security audit trails, and long-hold requirements.
+
+### Real-world naming examples
+
+- ctl_cip_ics_scd_s  
+  Control-class, NERC-CIP, ICS, SCADA telemetry, short-term retention.
+
+- res_pci_sec_aud_l  
+  Restricted-class, PCI, security, audit-related data, long-term retention.
+
+- ent_non_app_web_billing_app_m  
+  Enterprise-class, non-regulated, application/web logs for the “billing_app” service, medium-term retention.
+
+## Segregation Rules
+
+**Sensitivity walls**
+
+Data of fundamentally different Classes (for example, ent vs res) must never be mixed in the same index.
+
+**Compliance isolation**
+
+Regulated data (for example, pci, cip) must live in dedicated indexes to support specific retention, audit, and purge requirements.
+
+**Logical domain boundaries**
+
+Create one index per logical data domain where distinct access controls or retention policies are required.
+
+## Retention & Lifecycle Strategy
+
+Retention policies are standardized into three categories. Every index must be assigned one of these via its name suffix.
+
+| Category    | Suffix | Use Case                                               | Suggested Hot/Warm (Fast) | Suggested Cold (Capacity) | Suggested Frozen (Archive) | Suggested Total Retention |
+|-------------|--------|--------------------------------------------------------|---------------------------|---------------------------|----------------------------|---------------------------|
+| Short Term  | `_s`    | Troubleshooting, verbose debug, high-volume metrics    | 7 days                    | 23 days                   | Delete                     | 30 days                   |
+| Medium Term | `_m`    | Operational lookback, general IT/non-reg business data | 30 days                   | 335 days                  | Delete                     | 1 year                    |
+| Long Term   | `_l`    | Regulated data, audit trails, legal hold requirements  | 90 days                   | 3 years                   | 3 years (archive)          | 7 years                   |
+
+## Lifecycle definitions:
+
+**Hot/Warm**
+
+High-performance NVMe/SSD. Immediate search results and frequent analyst use.
+
+**Cold**
+
+High-capacity HDD, SAN, or object storage (for example, SmartStore). Slower search performance but still online.
+
+**Frozen**
+
+Archived to offline or colder storage (for example, object archive, tape) or deleted. Not searchable without restoration.
+
+## Data Catalog
+
+A central **Data Catalog** must be maintained defining, for every onboarded input:
+
+- Source system & IP / hostname
+
+- Sourcetype
+
+- Target index name (must follow the naming schema)
+
+- Data Class & Compliance driver(s)
+
+- Business owner and technical owner
+
+No data is onboarded into production Splunk environments without an explicit entry in this catalog.
+
+## Metadata Standards (source, sourcetype, host)
+
+This section defines required metadata standards to ensure consistent onboarding, reliable correlation, efficient search, and audit-ready traceability across I&T environments. These standards apply to all production ingestion and must be defined, reviewed, and maintained as part of the data onboarding lifecycle.
+
+### sourcetype standard
+
+Sourcetype is the primary indicator of what the event represents and how it should be parsed. All sourcetypes must follow the **tag:tag:tag** format with the following requirements:
+
+- **Format:** tag:tag:tag...
+
+- **Maximum tags:** 5
+
+- **Tag order:** left-to-right from **most abstract** to **most specific**
+
+- **Case:** all **lower case**
+
+- **Stability:** must be stable over time and meaningful
+
+- **No ephemeral values:** do not include values that change frequently or are unique per instance (for example, transaction IDs, session IDs, GUIDs, timestamps, random strings, dynamically assigned port numbers)
+
+- **Governance:** sourcetypes must be **defined and maintained** in the organization’s approved catalog/registry; new sourcetypes or changes to existing sourcetypes require governance review as part of onboarding
+
+**Recommended approved patterns and examples**
+
+**Vendor product logs: vendor:product:logtype**
+
+- Examples: paloalto:pan:traffic, paloalto:pan:threat
+
+**Operating system logs: os:logtype:logname**
+
+- Examples: linux:system:audit, windows:security:eventlog
+
+**Custom applications (if used): org:appname:logtype**
+
+- Example: acme:billing:trans
+
+### source standard
+
+Source identifies the logical origin of the data feed and should help operators understand where the data came from without being tied to transient details. All sources must also follow the **tag:tag:tag** format and align to the same conventions:
+
+- **Format:** tag:tag:tag...
+
+- **Maximum tags:** 5
+
+- **Tag order:** left-to-right from **most abstract** to **most specific**
+
+- **Case:** all **lower case**
+
+- **Stability:** must be stable, meaningful, and consistent across time
+
+- **Avoid ephemeral values:** do not include unique filenames that rotate with timestamps, unique IDs, per-run GUIDs, or per-connection attributes
+
+- **Preferred source identifiers:** logical feed names, connector IDs, integration names, stable file paths, or stable pipeline identifiers
+
+- **Governance:** sources must be defined and maintained in the catalog/registry; production sources must have an owner and be subject to periodic review
+
+**Examples**
+
+- Logical feed naming: ot:substation:syslog, it:datacenter:network:syslog
+
+- Connector identifier pattern: api:servicenow:incident, api:azuread:signin
+
+- Stable file path style (abstracted): file:linux:auth, file:windows:log
+
+### host standard
+
+Host identifies the originating asset and is critical for correlation, incident response, and compliance evidence.
+
+- **Accepted format:** host should match the **FQDN** or **CMDB asset name** where FQDN is not available (for example, srv-01.domain.local) rather than raw IP addresses.
+
+- **OT alignment:** for OT, host naming must be agreed with OT stakeholders and mapped to a stable OT asset identifier that ties back to the OT CMDB (for example, ot-asset-12345), with supporting fields maintained as needed for readability (such as asset_name, asset function types, site, or zone).
+
+- **Stability:** host values must remain stable and must not be overloaded with transient context (for example, do not embed session IDs or collector-specific details).
+
+### Standard ownership and maintenance
+
+- Designated custodians are responsible for maintaining an approved registry of source and sourcetype definitions, including the standard naming, description, owner, data class, and intended use.
+
+- Any change to a production source or sourcetype must be treated as a controlled change because it can impact parsing, knowledge objects, detections, dashboards, and downstream analytics.
+
+## Data Quality & Timestamping
+
+**Timezone Strategy**
+
+- Events are assumed to be in **UTC**, unless the data source explicitly includes a timezone offset in the event text.
+
+- Where sources log in local time (often OT/ICS), ingestion configurations must normalize timestamps to UTC to support cross-domain correlation.
+
+**The Quarantine Protocol**
+
+Data that fails onboarding standards must **not** be indexed into production indexes.
+
+- Such data is routed to a dedicated **quarantine index**, for example:  
+  ops_non_inf_bad_s (Operational, non-regulated, infrastructure, “bad” data, short-term retention).
+
+**The technical owner is responsible for:**
+
+- Correcting the configuration.
+
+- Ensuring that once fixed, data is routed to the correct production index and removed from quarantine.
+
+## Field Naming & CIM Alignment
+
+### Data Dictionary Mandate
+
+Before a data source is approved for **production ingestion**, a **Field Mapping Document** must be created, listing:
+
+- All extracted fields and their meaning
+
+- Data types
+
+- CIM mappings (where applicable)
+
+- Any field aliases
+
+### Governance & Approval
+
+- Designated **Data Stewards / Architects** are responsible for reviewing and approving the Field Mapping Document.
+
+- Gatekeeper rule: **No data source is configured in production** until a Steward has approved the mapping.
+
+### Naming Standards
+
+- **Custom fields** use lower_snake_case (lowercase with underscores).
+
+- Avoid ambiguous names (for example, value, type, id) unless they are clearly aliased to meaningful names.
+
+## The Sandbox Protocol (Temporary Innovation)
+
+To foster innovation and rapid prototyping without compromising production stability, a **Temporary Onboarding (“sandbox”) process** is permitted under strict conditions.
+
+### Scope & Purpose
+
+- Intended for **proof-of-concept (PoC)**, development, or ad-hoc troubleshooting.
+
+- Data ingested under this protocol is **best-effort** and has **no SLA**.
+
+### Relaxed Standards
+
+- Metadata: Custom or experimental sourcetype and source values are permitted without prior registration in the Data Catalog.
+
+- Governance: The Field Mapping and CIM approval processes are **waived** for the duration of the temporary use.
+
+### Restrictions
+
+**Index naming**
+
+Must use the reserved prefix `tmp_` followed by a project name and a short-term suffix, for example: tmp_project_alpha_s
+
+**Retention**
+
+- Sandbox indexes must always use the **Short Term (`_s`)** suffix.
+
+- Data is automatically purged after 30 days or less.
+
+**Expiration**
+
+- All sandbox configurations (inputs, props, transforms) must have an explicit **Expiration Date**.
+
+- If the use case is not transitioned to production (with full catalog, classification, and field mapping) by that date, the sandbox configuration is removed.
+
+**Data sensitivity**
+
+Regulated or highly sensitive production data must not be ingested into `tmp_` indexes. Sandbox is for **non-production or low-risk** data only.
+
+# Role-Based Access Control (RBAC)
+
+## Overview
+
+This section defines Tri-State's approach to Role-Based Access Control in Splunk. It establishes a layered model that maps directly to Splunk's native RBAC primitives, separates concerns to support audit and reuse, and aligns access decisions with the data classification and index naming standards defined elsewhere in this document.
+
+The intent of the model is to make every access decision traceable to a documented business need, to limit the blast radius of any single role assignment, to isolate sensitive capabilities behind explicit governance, and to keep the catalog of roles small enough to remain comprehensible as the deployment grows.
+
+## Mapping to Splunk primitives
+
+Splunk RBAC has exactly one object type: the **role**. A role is defined as a `[role_<name>]` stanza in authorize.conf and contains some combination of allowed indexes, capabilities, search-runtime constraints, and imported roles. Splunk does not natively distinguish between business-facing roles and underlying permission bundles — that distinction is a governance overlay introduced by this strategy.
+
+Within this model, both `rl_*` (Business Roles) and `pr_*` (Privilege Bundles) are Splunk roles. The relationship between them — a Business Role composed of multiple Privilege Bundles — is implemented through Splunk's importRoles attribute. Splunk evaluates a user's effective permissions as the **union** of all roles in their assigned set and the roles those import, with quota attributes evaluated as the **maximum** across the set. This behavior is foundational to the model and is the reason bundles can be composed freely without permission loss.
+
+## Conceptual model
+
+Tri-State organizes Splunk roles into two layers:
+
+- **Business Roles (**`rl_*`**)** are the roles assigned to users via their IdP group membership. A Business Role contains no permissions of its own; it is purely a composition of Privilege Bundles via importRoles. The name of a Business Role reflects a business function and access tier (for example, rl_ot_engineer, rl_cyber_security, rl_soc_t1).
+
+- **Privilege Bundles (**`pr_*`**)** are reusable, single-concern roles that grant one specific kind of access. Bundles are composed into Business Roles and are not assigned directly to users. The bundle name reflects the type and scope of access it grants.
+
+Privilege Bundles are organized into four categories, each governing one dimension of access:
+
+| **Category**     | **Purpose**                                                           | **Splunk attributes used**                                                                                 |
+|------------------|-----------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `pr_data_*`      | Defines which indexes a user can search                               | srchIndexesAllowed, srchIndexesDefault, optionally srchFilter                                              |
+| `pr_search_*`    | Defines the search-runtime envelope and search-execution capabilities | search, rtsearch, schedule_search, srchTimeWin, srchJobsQuota, rtSrchJobsQuota, srchDiskQuota, srchMaxTime |
+| `pr_feat_*`      | Grants capabilities supporting specific user activities               | Splunk capabilities (excluding search-execution capabilities, which live in `pr_search_*`)                 |
+| `pr_workspace_*` | Grants access to a curated set of Splunk apps and dashboards          | App-access grants in each app's metadata/local.meta file                                                   |
+
+A bundle in one category must not contain attributes belonging to another category. A `pr_data_*` bundle defines index access only and contains no capabilities. A `pr_workspace_*` bundle is an empty role stanza whose access is granted through app metadata. This separation is what makes bundles composable: any data bundle can be combined with any search bundle, any feature bundle, and any workspace bundle to produce a Business Role tailored to a specific population.
+
+![Figure 1: Layered RBAC control mapping](Splunk_Strategy_media/rbac_figure1.png)
+
+***Figure 1:** Layered control mapping from user identity through to Splunk's atomic permission primitives. Each layer maps to a distinct configuration concern; the `rl_`/`pr_` split is a governance overlay above Splunk's native role primitive.*
+
+## Composition convention: one Business Role per user
+
+Splunk natively supports assigning multiple roles to a single user, with permissions evaluated as the union across all assigned roles. Tri-State chooses to constrain this: **each user is assigned exactly one `rl_*` Business Role**. Variations in access between user populations are expressed by creating distinct Business Roles with different importRoles compositions, rather than by stacking multiple roles on a single user.
+
+This convention is enforced through IdP group membership policy and through compliance monitoring rather than through any Splunk-platform constraint. The reasons for adopting it:
+
+- **Audit clarity.** Answering “what can this user do?” requires inspecting exactly one role chain.
+
+- **Composability.** Every permission combination is expressed as an explicit, named Business Role, making the catalog of compositions enumerable.
+
+- **Blast-radius control.** A change to a Business Role affects exactly the population intended; a change to a shared bundle is reviewed under that lens.
+
+The trade-off is a larger number of Business Roles than would exist under multi-role assignment. This cost is accepted as the price of audit clarity.
+
+## IdP group to role mapping
+
+User membership in Business Roles is driven entirely by the corporate Identity Provider. Splunk does not hold the source of truth for identity, except for a small number of named break-glass local accounts (see “Local accounts” below).
+
+The mapping convention:
+
+- Each Business Role has exactly one corresponding IdP group, named `GRP_splunk_<rl_role_name>.`
+
+- The `[roleMap_SAML]` (or equivalent LDAP) stanza in authentication.conf contains exactly one role on the right side of each mapping line, and that role is always an `rl_*` Business Role.
+
+- Direct assignment of `pr_*` Privilege Bundles to IdP groups is prohibited.
+
+This convention is the technical enforcement point for the one-role-per-user rule.
+
+## Capabilities
+
+Splunk capabilities are the atomic permission units checked at runtime by Splunk's code. They are not user-defined; Splunk ships a fixed catalog of approximately 180 capabilities, extended by capabilities registered by installed apps (Enterprise Security, ITSI, third-party apps) via `[capability::<name>]` stanzas in their own authorize.conf files.
+
+Capabilities are granted to users exclusively through Privilege Bundles, never directly on Business Roles. The placement rule:
+
+- **Search-execution capabilities** (search, rtsearch, schedule_search) live in `pr_search_*` bundles, where they sit alongside the runtime envelope they govern.
+
+- **All other capabilities** live in `pr_feat_*` bundles, organized by the user activity they support.
+
+- `pr_data_*` and `pr_workspace_*` bundles never contain capabilities.
+
+### Sensitive capability tier
+
+A defined subset of Splunk capabilities is classified as **sensitive**. These capabilities grant privilege escalation, data destruction, credential access, or platform-wide configuration change, and require stricter governance than routine capabilities. The sensitive tier includes, at minimum:
+
+- edit_user, edit_roles_grantable — user and role administration
+
+- edit_tokens_all, list_storage_passwords — credential and token access
+
+- edit_search_server, edit_indexer_cluster — platform configuration
+
+- delete_by_keyword — data destruction
+
+- run_collect — arbitrary index writes
+
+- edit_indexes, edit_indexes_allinternal, clean_indexes — index modification
+
+Sensitive capabilities are isolated in dedicated `pr_feat_admin_*` bundles. No routine bundle contains a sensitive capability. The governance requirements applying to any role chain that includes a sensitive bundle:
+
+- Time-bounded assignment, with a maximum standing duration to be defined by the Platform team
+
+- Dual approval for assignment
+
+- Mandatory session logging to `_audit`
+
+- Quarterly recertification of membership
+
+### Capability changes across Splunk releases
+
+Splunk introduces new capabilities and occasionally renames or splits existing ones across major releases. App upgrades (Enterprise Security, ITSI) also expand the capability catalog. Each Splunk or major-app upgrade triggers a defined capability triage process:
+
+1.  Run a baseline capability inventory before the upgrade.
+
+2.  Run the same inventory after the upgrade and diff against the baseline.
+
+3.  For each new or changed capability: assign it to the appropriate `pr_feat_*` bundle (or create a new bundle if no existing one fits), or determine that it should not be granted to any role.
+
+4.  Update the deployment app and deploy through the standard change-management process.
+
+This process ensures that capability additions do not silently expand what existing roles grant.
+
+### Built-in roles
+
+Splunk ships built-in roles (admin, power, user, can_delete). Tri-State's policy regarding these roles:
+
+- Built-in roles are not modified.
+
+- Built-in roles are not used as components of `pr_*` bundles or `rl_*` Business Roles, except for explicitly-named research or service-account roles documented as deliberate exceptions.
+
+- The pr_feat_baseline bundle serves as the maintained equivalent of the user baseline within this model, containing capabilities every authenticated Splunk user in the Tri-State environment should hold.
+
+- The Splunk admin role is used only by named platform administrators and is governed under the sensitive capability tier.
+
+## Workspace bundles
+
+Workspace bundles (`pr_workspace_*`) are the one category that differs structurally from the others. The `pr_workspace_*` role stanza in authorize.conf is intentionally empty: it grants no capabilities, no indexes, and no quotas. Its purpose is to be a named role handle that other files can reference.
+
+The actual app access is granted in each app's metadata/local.meta file, which references the workspace role by name. For example:
+
+```ini
+# In etc/shcluster/apps/tristate_ot_workspace/metadata/local.meta
+[]
+access = read : [ pr_workspace_ot ], write : [ rl_platform_admin ]
+export = system
+
+[views]
+access = read : [ pr_workspace_ot ], write : [ pr_workspace_ot ]
+```
+
+A workspace bundle is therefore a two-file construct: the empty role stanza in the central tristate_rbac app, and the access grants in each app belonging to the workspace. A complete workspace deployment requires both halves; either alone produces a half-implemented workspace where users have a role they cannot use, or apps that no role can reach.
+
+The default landing application (the app a user sees first on login) is set in etc/users/`<username>`/user-prefs/local/user-prefs.conf. Splunk does not offer a role-level default-app attribute. Default landing apps are provisioned by automation on first login based on the user's `rl_*` Business Role, mapping each Business Role to its primary workspace app.
+
+## Authoritative configuration paths
+
+All RBAC definitions are deployed through a dedicated Splunk app, tristate_rbac, distributed via the search head cluster deployer or manually. The suggested authoritative paths:
+
+| **Configuration**                 | **Authoritative path**                                                                   |
+|-----------------------------------|------------------------------------------------------------------------------------------|
+| Role and bundle definitions       | etc/shcluster/apps/tristate_rbac/local/authorize.conf                                    |
+| IdP group to role mapping         | etc/shcluster/apps/tristate_rbac/local/authentication.conf                               |
+| RBAC app access control           | etc/shcluster/apps/tristate_rbac/metadata/local.meta                                     |
+| Workspace app access grants       | etc/shcluster/apps/`tristate_<workspace>`/metadata/local.meta (per workspace)           |
+| Indexes referenced by `pr_data_*` | etc/manager-apps/`<index_app>`/local/indexes.conf (deployed via indexer cluster manager) |
+| Default landing app per user      | etc/users/`<username>`/user-prefs/local/user-prefs.conf (provisioned by automation)      |
+
+Production modifications to RBAC made through the Splunk Web UI are prohibited. UI changes are written to etc/system/local/authorize.conf on the search head where the change was made — a path that is per-member, not under version control, and not synchronized across the cluster. Write access to the tristate_rbac app is restricted to platform administrators via the app's own local.meta, providing technical enforcement of this policy.
+
+A standing audit query detects drift between the deployment app and etc/system/local/ on any search head, alerting on any role or capability assignment outside the authoritative path.
+
+## Bundle catalog sizing
+
+The model should be designed to remain compact and abstracted. Suggested target counts per category:
+
+| **Category**     | **Target count** | **Sized by**                                       |
+|------------------|------------------|----------------------------------------------------|
+| `pr_data_*`      | 8–12 bundles     | Data classification × domain matrix                |
+| `pr_search_*`    | 3–4 bundles      | Distinct runtime envelopes                         |
+| `pr_feat_*`      | 6–10 bundles     | User activities recognized by the governance model |
+| `pr_workspace_*` | 3–6 bundles      | Distinct app landing experiences                   |
+
+Growth beyond these targets is permitted but requires justification under the following tests:
+
+- **Necessity test.** A new bundle is justified only when it represents a genuinely distinct access boundary: at least one role needs it, and at least one role must not have it.
+
+- **Reuse test.** A bundle used by exactly one Business Role is not a bundle; those grants belong directly in the Business Role's stanza, marked as a deliberate exception.
+
+- **Composition test.** Before adding a bundle, attempt to satisfy the requirement by composing existing bundles into a new Business Role. New Business Roles are cheap; new bundles are not.
+
+## Local accounts
+
+A small number of named local accounts are maintained for break-glass scenarios — typically two named platform administrators with sealed credentials managed by the Security team. Local accounts bypass SAML authentication and are not subject to the IdP-driven role assignment process.
+
+Policy for local accounts:
+
+- The local account roster is documented and reviewed quarterly.
+
+- Each local account login is audited and alerted on.
+
+- Credentials are stored in the Tri-State PAM system, sealed, and rotated on a defined schedule.
+
+- Service accounts are not created as local accounts; service identities are managed through the IdP wherever the integration permits.
+
+## Service accounts
+
+Splunk service accounts (used by integrations, forwarders authenticating with credentials, scheduled API consumers, and similar) are governed by the same role model as human users. Each service account is assigned exactly one Business Role, named with the convention `rl_svc_<purpose>` (for example, rl_svc_siem_ingest). Service-account Business Roles compose from the same Privilege Bundle catalog as human roles, with the following additional discipline:
+
+- The pr_search_constrained bundle (narrow runtime envelope, no scheduling, no real-time) is the default for service accounts unless a wider envelope is justified.
+
+- Service accounts are scoped to the minimum data, capability, and workspace bundles required for their function.
+
+- Service account credentials are managed in the Tri-State secrets management platform.
+
+- Service account activity is logged to `_audit` and reviewed quarterly.
+
+## Compliance monitoring
+
+The integrity of the RBAC model is verified through a defined set of saved searches running against `_audit`, `_internal`, and the /services/authorization/roles REST endpoint. The standing detections:
+
+| **Detection**                   | **Question it answers**                                                                                                 |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| Multi-role assignment           | Are any users assigned more than one `rl_*` role?                                                                       |
+| Direct bundle assignment        | Are any users or IdP groups directly assigned a `pr_*` Privilege Bundle?                                                |
+| Sensitive capability sprawl     | Is any sensitive capability granted by a role outside its designated `pr_feat_admin_*` bundle?                          |
+| Destructive capability check    | Does any role grant delete_by_keyword, edit_indexes, or other destructive capabilities outside the explicit allow-list? |
+| Configuration drift             | Does etc/system/local/authorize.conf on any search head contain stanzas outside the authoritative deployment app?       |
+| Sensitive role chain membership | Who currently holds, or has recently been granted, membership in a role chain that includes a sensitive bundle?         |
+| Capability catalog change       | Have any capabilities been added, removed, or renamed since the last baseline?                                          |
+
+Detection output is routed to the Platform team for triage. Recurring violations are treated as policy gaps requiring strategy revision, not as incidents to suppress.
+
+## Change management
+
+RBAC changes follow the standard Tri-State Splunk change-management process with the following additional requirements specific to this section:
+
+- All changes to authorize.conf and authentication.conf are made via pull request against the tristate_rbac repository, never directly through Splunk Web.
+
+- Pull requests require review by at least one platform administrator not party to the change.
+
+- Changes affecting sensitive bundles or the `[roleMap_SAML]` stanza require additional review by the Security team.
+
+- Every RBAC change is tested in the non-production Splunk environment with a representative set of test users before production deployment.
+
+- A defined rollback procedure exists for each category of change. The rollback procedure is exercised at least annually as part of platform disaster-recovery testing.
+
+- The deployment app version in app.conf is incremented on every change, providing a versioned audit trail in combination with the repository history.
+
+## Glossary
+
+| **Term**                  | **Definition**                                                                                                                                                                     |
+|---------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Business Role (`rl_*`)    | A Splunk role assigned to users via IdP group membership, composed entirely of Privilege Bundles via importRoles. Contains no permissions of its own.                              |
+| Privilege Bundle (`pr_*`) | A reusable, single-concern Splunk role granting one specific kind of access. Not assigned directly to users.                                                                       |
+| Capability                | A Splunk-defined atomic permission unit checked by Splunk's code at runtime. Approximately 180 capabilities exist, extended by installed apps.                                     |
+| Sensitive Capability      | A capability classified by Tri-State as requiring stricter governance due to its potential for privilege escalation, data destruction, credential access, or platform-wide impact. |
+| Workspace                 | The curated set of Splunk apps and dashboards a user population interacts with. Implemented as a `pr_workspace_*` role handle plus app-level metadata grants.                      |
+| IdP Group                 | A group defined in Tri-State's Identity Provider, mapped one-to-one to a Business Role via SAML or LDAP role mapping.                                                              |
+| Effective Permission Set  | The union of all permissions a user receives through their assigned role and all roles imported transitively. Computed by Splunk at search time.                                   |
+
+# Security, Privacy & Compliance
+
+The Splunk platform must support Tri-State’s security and compliance obligations while protecting sensitive OT and IT data from unauthorized access, misuse, or leakage. Security and privacy are treated as **design constraints**, not features to be added later. This section defines how Splunk will:
+
+- Enforce data segregation and least-privilege access.
+
+- Align with applicable regulatory and internal policy requirements (for example, NERC CIP, corporate security standards).
+
+- Provide auditable evidence of control operation for internal and external assessments.
+
+Splunk is both a **consumer** of security controls (hardened infrastructure, Zero Trust network posture, RBAC) and a **provider** of security capabilities (monitoring, alerting, and forensic data).
+
+## Data Protection & Segregation
+
+Data protection within Splunk is grounded in:
+
+- The **5-Class Data Model** (Public, Enterprise, Operations, Control, Restricted) and associated Compliance Drivers.
+
+- The **index naming schema** (`[class_compliance_domain_content_detail_retention]`) and retention tiers (`_s`, `_m`, `_l`) that encode sensitivity, compliance drivers, and lifecycle into every index.
+
+- Mandatory **segregation rules** that prevent mixing data of different sensitivity or compliance regimes in the same index.
+
+Security and compliance expectations:
+
+**Class-based separation:**
+
+- Data of different sensitivity classes (for example, ent vs res) must not share an index.
+
+- Control/OT data (for example, `ctl_cip_ics_*_*`) is kept separate from general IT/business data.
+
+**Compliance isolation:**
+
+- Regulated data lives in dedicated indexes, enabling specific retention, purge, and audit controls.
+
+**Data catalog & ownership:**
+
+- Every data source onboarded into production must be defined in the Data Catalog with class, compliance drivers, and business/technical owners before ingestion is enabled.
+
+**Edge filtering and minimization:**
+
+- Non-actionable noise (debug logs, low-value verbose fields) that is not dictated by compliance should be removed at the ingestion layer where feasible, reducing risk exposure and license cost while preserving necessary forensic value. The ingested data must be reviewed periodically for such decisions.
+
+These policies ensure that security and compliance posture are baked into how data is onboarded, named, and retained.
+
+## Access Control & Identity
+
+Access to data and administrative capabilities in Splunk is governed by the **Role-Based Access Control (RBAC)** model defined in the RBAC section:
+
+- Each user has a 1:1 relationship with a Business Role, and each Business Role has a 1:N relationship with Privilege Bundles that define data, search, feature, and workspace permissions.
+
+- Privilege Bundles are aligned to index patterns (class, compliance, domain) so that users see only the data their function requires.
+
+- Administrative privileges (platform admin, app admin, knowledge-object admin) are separated from standard user roles to enforce separation of duties.
+
+Security requirements for identity and access:
+
+- **Centralized identity:** All user authentication integrates with the enterprise Identity Provider (IdP) and follows corporate standards for MFA and password policies.
+
+- **Least privilege:** Default roles grant minimal search and feature permissions; additional Privilege Bundles are added only when justified and approved.
+
+- **Periodic reviews:** Access rights (Business Roles, Privilege Bundles, and IdP group membership) are reviewed on a regular, defined cadence to detect and remediate excess access or violations of the 1:1 user–role relationship.
+
+## Network Security & Encryption
+
+Splunk infrastructure participates in Tri-State’s **Zero Trust network model**, as defined in the Network Zoning & Zero Trust Architecture section:
+
+- **Isolation:** All Splunk components reside in dedicated management subnets/VLANs, separate from user endpoints and general server networks.
+
+- **Access control:** Traffic is denied by default and allowed only for documented ports and flows (for example, HTTPS for UI, management API, and forwarder ingestion) approved by Security and the Splunk Platform team.
+
+- **Privileged access:** Administrative access (SSH/RDP) is permitted only via approved jump hosts or Privileged Access Management solutions; direct access from user subnets is prohibited.
+
+Encryption controls:
+
+- **In transit:** All user access and inter-Splunk communication (UI, management, forwarder traffic where supported) use TLS-secured endpoints.
+
+- **At rest:** Storage for Splunk components (indexes, configuration, and metadata) must follow Tri-State standards for disk and database encryption, particularly for data classified as Control or Restricted.
+
+- **Certificate management:** TLS certificates for Splunk endpoints are issued, renewed, and revoked in line with corporate PKI policies and monitored for expiry.
+
+## Regulatory Compliance & Auditability
+
+Splunk must support and not hinder compliance with applicable regulatory frameworks and internal policies (for example, NERC CIP for OT/EMS, PCI DSS for payment data, and internal security standards). At a strategy level, this means:
+
+**Audit-ready logging:**
+
+- Administrative actions within Splunk (role changes, index changes, configuration changes) must be logged and retained in dedicated audit indexes following long-term retention policies.
+
+- Access to sensitive or regulated data is traceable back to users and Business Roles through Splunk and IdP logs.
+
+**Retention alignment:**
+
+- Retention policies encoded via suffixes (`_s`, `_m`, `_l`) must be chosen to satisfy or exceed regulatory minimums for relevant data classes and compliance drivers.
+
+**Change control:**
+
+- Security-relevant configuration changes in Splunk (for example, indexes.conf, authentication.conf, authorize.conf) are managed via Configuration-as-Code, documented, and subject to formal change control and review.
+
+**Evidence generation:**
+
+- The platform provides defined reports, dashboards, and search patterns that can be used by Compliance and Audit teams to demonstrate control operation (for example, access reviews, log coverage, retention enforcement).
+
+## Privacy & Data Minimization
+
+Even when data is primarily operational or security-related, logs and telemetry can contain personal or otherwise sensitive information. Splunk must therefore adhere to privacy-by-design principles:
+
+- **Data minimization:** Only data necessary for security, reliability, and operational use cases is ingested; high-risk personal data (for example, free-form text fields, full payloads) is avoided or stripped where feasible.
+
+- **Masking and pseudonymization:** Where business requirements demand storing identifiers or user-related fields, masking or pseudonymization patterns are applied at the ingestion or parsing layer in line with corporate privacy standards.
+
+- **Use-case justification:** New data sources that include potential PII or other sensitive attributes require an explicit risk assessment and approval by Security/Privacy before onboarding into production.
+
+- **Access controls on sensitive fields:** Where PII or similar data is present, RBAC and search controls must restrict access to only those roles that need it, with additional monitoring for misuse.
+
+Together, these policies ensure that Splunk operates as a **secure, privacy-aware, and compliant platform**, where protection of sensitive OT and IT data is enforced through classification, architecture, RBAC, network controls, and auditable processes.
+
+# Performance, Capacity, Sizing & Cost Awareness
+
+This section establishes how Splunk performance and capacity will be managed to maintain reliability and resilience, while ensuring the platform remains financially sustainable. The intent is to treat Splunk as an enterprise service with predictable performance, disciplined growth, and cost-aware onboarding.
+
+**Performance objectives**
+
+- Maintain stable ingestion, indexing, and search performance under normal and peak conditions.
+
+- Protect critical operational and security use cases from resource contention.
+
+- Ensure that platform changes (data onboarding, parsing, apps, dashboards, alerts, integrations) do not degrade service health.
+
+**Capacity and sizing approach**
+
+- Use a standardized sizing model that considers ingestion rate, retention tiers, search concurrency, indexing complexity, and growth projections.
+
+- Validate sizing assumptions during the test implementation environment before scaling production.
+
+- Reassess sizing and capacity regularly as new data sources and use cases are onboarded.
+
+**Capacity management practices**
+
+- Establish platform baselines for ingestion throughput, indexing latency, search performance, storage growth, and system utilization.
+
+- Implement proactive monitoring for leading indicators such as queue growth, indexing delay, replication/search health, disk IOPS pressure, and search head saturation.
+
+- Use thresholds and operational runbooks to manage peaks, prioritize workloads, and protect platform stability.
+
+**Cost awareness and sustainable growth**
+
+- Treat data onboarding as a cost decision as well as a technical decision.
+
+- Prioritize high-value telemetry and apply data minimization at ingestion to reduce unnecessary volume.
+
+- Align retention to data class, compliance need, and operational value, using retention tiers rather than “one size fits all.”
+
+- Periodically review existing sources and content to identify low-value data, redundant feeds, and overly verbose events that can be filtered or retired.
+
+**Search and content performance discipline**
+
+- Require performance-aware design for scheduled searches, dashboards, and correlation content.
+
+- Encourage reuse of shared data models, standard macros, and curated datasets rather than duplicating expensive search patterns.
+
+- Validate search performance and resource impact in the test environment before promoting high-impact content to production.
+
+**Governance linkage**
+
+- Performance and cost impacts should be assessed during onboarding approvals and change reviews.
+
+- Managers should periodically review platform utilization and cost drivers and adjust onboarding priorities, retention tiers, and optimization initiatives accordingly.
+
+# App, Content & Use Case Development
+
+This section defines how use cases are proposed, designed, implemented, and maintained on the Splunk platform. It covers searches, alerts, dashboards, knowledge objects, and applications (including custom commands and code). The goal is to ensure that all content is **governed, consistent, performant, and supportable**, while still allowing teams to innovate.
+
+## Objectives
+
+- Provide a **consistent framework** for developing Splunk content that aligns with data classification, index naming, and RBAC standards.
+
+- Ensure that new use cases go through a **structured intake, design, and approval process**.
+
+- Promote **reuse and standardization** of searches, dashboards, and apps across OT and IT teams.
+
+- Manage the **risk and cost** of content (search load, license consumption, maintenance overhead).
+
+## Use Case Intake & Prioritization
+
+All new Splunk use cases (for example, dashboards, alerts, reports, analytics apps) should follow a common intake process:
+
+**Use Case Definition**
+
+- Problem statement and objective.
+
+- Target users (NOC, SOC, OT engineers, business owners).
+
+- Data sources required (mapped to Data Catalog entries).
+
+**Classification & Governance Alignment**
+
+- Confirm that needed data is already in the **Data Catalog** with defined class, compliance drivers, and target indexes.
+
+- If new data is required, follow the **Data Strategy & Onboarding** process before proceeding.
+
+**Prioritization**
+
+- Use agreed prioritization criteria (for example, security/compliance impact, reliability benefit, effort, dependencies).
+
+- Capture approved use cases in a central backlog managed by the Splunk Platform team and key stakeholders (OT/IT/SOC).
+
+## Content Standards (Searches, Alerts, Dashboards, Knowledge Objects)
+
+All Splunk content must conform to a basic set of standards:
+
+### Searches & Alerts
+
+- Use **CIM-aligned fields** where applicable, leveraging the Field Mapping and Data Dictionary standards.
+
+- Optimize for performance (use index/time constraints, avoid unbounded wildcards, use summary or accelerated data where appropriate).
+
+- Explicitly define severity, owner, and run frequency for alerts.
+
+- Structured naming
+
+- snake_case without restrictions on upper or lower case
+
+- And the requirement that standards are approved and documented up front.
+
+### Dashboards & Reports
+
+- Use consistent layouts and page structures (for example, “Overview,” “Investigate,” “Detail” tabs).
+
+Follow a documented, pre-approved naming standard for all dashboards and reports.
+
+- Naming standards must be **defined, approved, and documented** by the Splunk Design Authority (or equivalent governance group) **before** dashboards or reports are created in production.
+
+- Use a **structured snake_case** pattern to make objects easy to identify and search. Recommended format:
+
+  - \<Object_type\>`_`\<Domain\>`_`\<Detailed_name\>
+
+  - OBJECT_TYPE:
+
+    - RP= Report
+
+    - DS = Dashboard
+
+  - DOMAIN: high-level domain such as IT, OT, SEC, PCI, NOC, etc.
+
+  - DETAILED_NAME: short, descriptive name in snake_case.
+
+- Examples:
+
+  - RP_IT_NETWORK_ABNORMALITIES
+
+  - DS_OT_CRITICAL_MEASURES
+
+- Clearly label data sources, time ranges, and filters in the UI so users understand context and scope.
+
+- Avoid excessive real-time panels, prefer scheduled reports, summary indexes, or accelerated data models when feasible to reduce load and improve performance.
+
+## Other Splunk Entities Catalog and Naming Standards
+
+In addition to data sources, the Data Catalog must include key Splunk entities that represent operational logic and platform outputs. These entities must be consistently named, owned, and managed to support reliability, auditability, reuse, and controlled change.
+
+### In-scope entities
+
+- Alerts and alert actions
+
+- Summary reports and summary indexes
+
+- Scheduled searches and correlation searches
+
+- Dashboards, reports, and saved searches
+
+- Lookups and KV store collections (where used)
+
+- Macros, event types, tags, and calculated fields (where used)
+
+- Notable event definitions, suppression rules, and tuning exceptions (where applicable)
+
+### Naming convention
+
+All entities must follow a consistent naming convention aligned to snake_case convention.
+
+### Prefixes
+
+To support discoverability and lifecycle management, use standardized prefixes by entity type, followed by a meaningful tag-based name [RECOMMENDED]:
+
+- `al_` for alerts
+
+- `sr_` for summary reports / summary indexing jobs
+
+- `cs_` for correlation searches
+
+- `ss_` for scheduled searches
+
+- `da_` for dashboards
+
+- `rp_` for reports
+
+- `lk_` for lookups
+
+- `mc_` for macros
+
+- Example formats:
+
+- al_security_authentication_bruteforce
+
+- sr_ops_availability_daily
+
+- cs_ot_anomaly_protocol
+
+- ds_it_patching_status
+
+### Suffixes
+
+Furthermore, use suffixes to define categorical identification. For example:
+
+For a summary report that runs daily, use `_daily` as a suffix:
+
+- `sr_[`…`]_daily`
+
+For a scheduled search that runs every 4 hours, use `_4h` as a suffix:
+
+- `ss_[`…`]_4h`
+
+These suffixes and formats need to be defined, approved and maintained.
+
+### Management rule
+
+All cataloged Splunk entities must have an assigned owner, an intended use, and a defined lifecycle state (for example: draft, approved, production, deprecated). Changes to production entities must follow change and release management practices, and entities must be periodically reviewed to confirm continued business need, RBAC alignment, and operational relevance
+
+## Knowledge Objects (KOs)
+
+- Naming conventions must follow snake_case and be descriptive (no search1, temp_test, etc.).
+
+- Ownership and sharing scope must be explicitly set (private, app, or global) and aligned with RBAC and data sensitivity.
+
+- Reusable macros and lookups should be centralized in **utility apps** rather than duplicated across many apps.
+
+## Knowledge Object Sharing & Multi-Tenancy
+
+### Scope & Sharing
+
+- Default scope for new content is **app-level**, not global.
+
+- Global sharing is allowed only when the content is broadly reusable and does not expose restricted data or logic.
+
+### Tenant / Dedicated Search Heads
+
+- Tenant Search Heads follow the same content standards, but content is scoped to tenant apps by default.
+
+- Shared, cross-tenant content must be provided from centrally managed apps and governed by the Splunk Platform team.
+
+## Apps & Technology Add-ons (TAs)
+
+Splunk capabilities are packaged and deployed as apps and TAs:
+
+### Splunkbase Apps
+
+Must be reviewed for:
+
+- Security (permissions, network access, code inspection where feasible).
+
+- Compatibility with the current Splunk version and topology.
+
+- Overlap with existing capabilities.
+
+Only approved versions are installed in production; upgrades follow change management.
+
+### Internal Apps
+
+Used for:
+
+- Organization-specific dashboards and workflows.
+
+- Normalization logic and knowledge objects.
+
+- Custom commands, modular inputs, and integrations.
+
+Must be version-controlled (Git) and deployed only upon approval.
+
+## Custom Commands, Custom Code, and Apps
+
+Custom code is a powerful enabler in Splunk, but it introduces risk if it is not governed. This subsection defines how custom search commands, modular inputs, apps, integrations, and supporting code are allowed, developed, deployed, and operated on the Splunk platform.
+
+### Guiding Principles
+
+#### Native first
+
+Before introducing custom code, teams must evaluate whether native SPL, base Splunk features, or supported Splunk/Splunkbase apps can satisfy the requirement. Custom code is a last resort, not the default.
+
+#### Governed and security-reviewed
+
+Custom code is allowed, but only when subject to defined governance, security review, performance review, and lifecycle management.
+
+#### Confined to applications
+
+All custom logic (commands, scripts, modular inputs, lookups, UI components) must live inside Splunk apps, not in ad hoc filesystem locations or stand-alone scripts.
+
+#### Config-as-Code by default
+
+All custom code and configuration deployed to production must be under version control, with changes promoted via change management process. No “snowflake” manual edits on production search heads.
+
+#### Security and performance conscious
+
+Custom code must respect RBAC, data classification rules, and resource constraints. It must not bypass access controls or materially degrade platform performance.
+
+## Environment & Configuration-as-Code Guardrails
+
+### Where custom code is allowed
+
+- Custom search commands, modular inputs, and related configurations are allowed **only on Splunk Search Heads** and must be packaged and deployed as part of Splunk apps.
+
+- All custom code must be confined within app directories (for example, \$SPLUNK_HOME/etc/apps/\<app_name\>).
+
+### Source control and documentation
+
+All custom code and app configuration that runs in production must:
+
+- Be committed to an approved **Git repository** (or equivalent).
+
+- Be **properly documented and commented**, including:
+
+  - Purpose and supported use cases.
+
+  - Inputs/outputs and assumptions.
+
+  - Ownership and escalation contacts.
+
+Include **operational documentation** (how to deploy, test, monitor, and roll back).
+
+### Languages, runtimes, and platforms
+
+- **Python is preferred** for Splunk-side custom development due to native support and operational familiarity.
+
+- Other programming languages are allowed upon explicit approval and Security, provided:
+
+  - Runtime management is clearly defined (versioning, patching, dependencies).
+
+  - Logging, monitoring, and resource usage can be controlled.
+
+- **Kubernetes and containers** are allowed for supporting components (for example, external services, ML jobs, enrichment APIs), provided they are:
+
+  - Treated as managed services with clear ownership.
+
+  - Aligned with network zoning and Zero Trust policies.
+
+### Data access, whitelists, configuration, and libraries
+
+Custom commands and code:
+
+- Run with the **effective permissions of the invoking user** and therefore remain subject to Splunk RBAC and data classification rules.
+
+- May operate over any datasets and indexes that the invoking user is authorized to access; they are not artificially constrained to a subset of indexes.
+
+> Storing **whitelists, configuration files, and reference data** within apps is allowed, provided:
+
+- They are under version control.
+
+- Sensitive values (secrets, credentials) use approved secure mechanisms, not plain text.
+
+> **Downloading libraries** (for example, Python packages) is allowed, subject to:
+
+- Preferential use of internal repositories where available.
+
+- Version pinning to known-safe versions.
+
+- Dependency review and security scanning as part of CI/CD.
+
+### Promotion path
+
+All custom search commands, modular inputs, TAs with code, and internal apps must follow a controlled promotion flow:
+
+**Development / Sandbox**
+
+1.  Code is developed and iterated in dev or sandbox environments using non-production or test data (for example, `tmp_` indexes where appropriate).
+
+**Test / QA**
+
+2.  Deployed through change control management to a test environment that reflects production topology as closely as practical.
+
+3.  Functional, security, and performance testing is performed.
+
+**Stage / Pre-Prod (recommended)**
+
+4.  Deployed to a staging environment for final validation and user acceptance testing.
+
+**Production**
+
+5.  Promotion only after passing defined quality gates:
+
+    1.  Code review complete.
+
+    2.  Security review and dependency scanning complete.
+
+    3.  Performance impact validated as acceptable.
+
+6.  Deployed via automated pipelines from Git; **no manual installation** on production search heads.
+
+7.  Rollback procedures (for example, revert to previous app version, disable problematic command) must be documented and tested.
+
+### Development & Approval
+
+#### When custom code is allowed
+
+Custom search commands, Python code, modular inputs, and similar extensions are allowed only when:
+
+- The required function **does not inherently exist** in Splunk SPL or standard features; and
+
+- A custom implementation is required as existing apps do not offer a comparable, secure feature set. Management has approved custom development to prioritize long-term maintainability and specific operational requirements over off-the-shelf solutions
+
+#### Review and approval process
+
+All custom code must undergo:
+
+**Peer review**
+
+- At least one reviewer other than the author must review code and configuration.
+
+**Security review**
+
+- Dependency scanning for third-party libraries.
+
+- Checks for credential handling, input validation, and proper logging.
+
+**Documentation review**
+
+- Confirm that purpose, usage, ownership, and rollback are documented.
+
+- Confirm that any new data flows are consistent with data classification and network zoning.
+
+Custom code is deployed **only on Search Heads** (and any explicitly approved external runtimes) and must not be installed on indexers or utility servers except where specifically justified and approved.
+
+### Performance expectations and guardrails
+
+Custom code must:
+
+- Incorporate **resource limits** (timeouts, concurrency limits, reasonable result set sizes).
+
+- Undergo **performance testing** in test/stage environments before production deployment.
+
+- **Fail gracefully** with clear error messages, no unbounded loops, and safe error handling that does not take down the platform.
+
+### Secrets and Configuration handling rules
+
+These rules apply uniformly to all custom commands, modular inputs, integrations, and apps, regardless of language or runtime.
+
+**No hardcoded secrets**
+
+- Passwords, API keys, access tokens, SNMP community strings, private keys, certificates, and similar secrets must **never** be hardcoded in code, configuration files committed to Git, or dashboards.
+
+- Secrets must be stored and retrieved using **approved secret management mechanisms** (for example, enterprise secrets manager, Splunk secure storage, or equivalent), not in plain text.
+
+**No hardcoded environment-specific endpoints**
+
+- Direct IP addresses, hostnames, and URLs for production systems must not be hardcoded in code.
+
+- Environment-specific details (endpoints, ports, tenants, realms) must be externalized into configuration managed via apps and Config-as-Code, not embedded in source code.
+
+**Secure configuration and whitelists**
+
+- Configuration files and whitelists may be stored in apps and version-controlled, but must not contain secrets.
+
+- Where sensitive references are required (for example, identifiers that map to secrets), use indirection (keys, IDs) that are resolved via the approved secret/configuration mechanism at runtime.
+
+**No logging of sensitive values**
+
+- Custom code must not log passwords, tokens, SNMP strings, certificates, or full connection strings, even in debug logs.
+
+- Where troubleshooting requires context, log non-sensitive metadata (for example, connection name, endpoint alias) instead of raw credentials or payloads.
+
+### Support and ownership
+
+Each custom app/command must have:
+
+- A clearly defined **owner** (team and primary contact).
+
+- A defined **support model** (who responds to incidents, who approves changes).
+
+- Lifecycle expectations (criteria for deprecation, replacement, or migration).
+
+### Splunkbase apps vs. internal apps vs. one-off scripts
+
+**Splunkbase apps**
+
+- Preferred when they are mature, supported, and secure.
+
+- Must be reviewed before production use.
+
+**Internal apps**
+
+- Follow all the rules in this subsection (Git, CI/CD, review, documentation, monitoring).
+
+- Are the standard vehicle for custom commands, modular inputs, TAs, and reusable KOs.
+
+**One-off scripts**
+
+- Unmanaged scripts on Splunk hosts are **not allowed** in production.
+
+- Any script that becomes operationally important must be converted into a governed internal app.
+
+This section ensures that all apps, content, and custom code on the Splunk platform are **intentional, governed, and sustainable**, while still giving Tri-State teams the flexibility to build the analytics and workflows they need.
+
+# Operations, Monitoring & Maintenance (Platform Operations)
+
+Platform Operations is responsible for running Splunk as a secure, compliant, reliable, resilient enterprise service. This includes day-to-day operations, monitoring, routine maintenance, lifecycle management, and operational governance to ensure the platform consistently meets business and regulatory needs.
+
+## Operational responsibilities
+
+- Operate and maintain all Splunk platform components (ingestion tier, indexers, search heads, management components, forwarder services, and supporting integrations).
+
+- Maintain platform stability, performance, and availability through proactive monitoring and disciplined change control.
+
+- Enforce platform standards for security zoning, RBAC, data segregation, metadata standards, and evidence integrity.
+
+- Provide operational support for onboarding pipelines, including validation of ingestion health and troubleshooting parsing or pipeline issues.
+
+## Monitoring and alerting expectations
+
+Platform Operations will implement and maintain monitoring that provides early warning and operational context, including:
+
+**Ingestion and pipeline health**
+
+- Forwarder and collector health, connectivity, queue depth, dropped events, and ingestion latency.
+
+- Data volume anomalies (unexpected spikes or drops) by source, sourcetype, and index.
+
+**Indexing and storage health**
+
+- Indexing throughput, indexing delay, disk utilization, IOPS pressure, hot/warm bucket behavior, and retention enforcement.
+
+- Cluster health indicators, including replication and search integrity.
+
+**Search and user experience**
+
+- Search head resource utilization, search concurrency and saturation, scheduler health, and slow search detection.
+
+- Impact monitoring for scheduled searches, summary jobs, alerts, and high-cost dashboards.
+
+**Security and audit signals**
+
+- Authentication events, privileged access patterns, administrative actions, configuration changes, and audit log completeness.
+
+- Detection of unauthorized interfaces, unexpected outbound connections, or cross-zone flow anomalies.
+
+## Maintenance and lifecycle management
+
+- Execute routine maintenance activities such as certificate renewals, housekeeping, capacity tuning, app lifecycle maintenance, and supported upgrades.
+
+- Maintain a vendor support alignment plan for Splunk versions and critical dependencies.
+
+- Implement standard backup and recovery procedures for critical configuration and platform state.
+
+- Ensure the test implementation environment is used to validate upgrades and high-impact changes before production release.
+
+## Incident, problem, and recovery management
+
+- Maintain on-call and escalation procedures for platform incidents, including defined severity levels and communications protocols, where applicable.
+
+- Use runbooks for common failure scenarios (ingestion stoppage, indexing delays, search degradation, cluster health issues, certificate failures).
+
+- Conduct post-incident reviews for significant events and feed findings into operational improvements, monitoring enhancements, and change practices.
+
+- Validate resiliency through periodic recovery exercises and failover testing aligned to business continuity expectations.
+
+## Access, exceptions, and periodic review support
+
+- Support periodic reviews of inbound interfaces, cross-zone flows, and privileged access.
+
+- Ensure temporary exceptions are documented, time-bounded, and removed or re-approved according to governance expectations.
+
+- Maintain an operational record of platform changes and releases to support audit readiness.
+
+## Operational documentation and runbooks
+
+- Maintain current runbooks, standard operating procedures, and escalation guides.
+
+- Document standard patterns for onboarding, troubleshooting, and maintenance to reduce dependency on individual knowledge and improve resilience.
+
+## Continuous improvement
+
+- Track operational trends (stability, performance, capacity, incident drivers) and recommend optimization initiatives.
+
+- Identify sources of waste (noisy data, redundant feeds, inefficient searches) and partner with stakeholders to reduce cost and improve performance.
+
+- Regularly review platform posture to ensure it remains aligned with evolving security, compliance, and operational requirements.
+
+# Interfaces and Data Movements
+
+This section defines the approved ways data may enter, move within, and exit Splunk. The goal is to enable fast onboarding and innovation while staying secure, compliant (including NERC CIP), reliable, resilient, and operationally supportable. Splunk’s design is prescriptive at the boundaries and zoning level, while allowing teams to innovate safely inside those guardrails.
+
+## Core principles for interfaces and data movement
+
+- **Zone-aware movement:** Interfaces and data movement must respect network zoning and Zero Trust expectations; supporting components must be aligned with network zoning and Zero Trust policies.
+
+- **Regulatory isolation (including CIP):** Data classification and compliance drivers (including NERC CIP) are encoded into indexes and enforced through segregation rules so regulated data can have specific retention, purge, and audit controls.
+
+- **RBAC is mandatory at every interface:** Access to Splunk data and capabilities is governed by role-based design tied to identity groups, business roles, and privilege bundles, with an auditable chain from identity to governed indexes and capabilities.
+
+- **Data minimization and protection:** Non-actionable noise and low-value verbose fields should be removed at the ingestion layer where feasible, reducing risk exposure and cost while preserving necessary forensic value.
+
+- **Anonymization and obfuscation where necessary:** When datasets must cross zones or be used for broader visibility, sensitive attributes must be masked, tokenized, or obfuscated as required by classification and compliance needs (including minimizing re-identification risk).
+
+## Inbound access approvals and periodic review
+
+- **Production onboarding requires a Data Catalog entry:** No data is onboarded into production Splunk environments without an explicit catalog entry defining source, sourcetype, target index, data class, compliance drivers, and owners.
+
+- **Field-level governance before production:** Before a data source is approved for production ingestion, a Field Mapping Document must be created and approved by a designated Data Steward or Architect (gatekeeper rule).
+
+- **Inbound interface approvals:** Any inbound path (forwarders, syslog, HEC, APIs, cross-zone feeds, partner integrations) must be explicitly approved by platform governance and the appropriate security, compliance, and data owner stakeholders, consistent with classification and compliance isolation.
+
+- **Periodic review:** All inbound interfaces and granted access are subject to periodic review to validate continued business need, appropriate RBAC alignment, and ongoing compliance. RBAC monitoring already expects regular reviews to identify exceptions and enforce expirations for temporary deviations.
+
+## Cross-zone pattern
+
+When a higher security zone requires visibility into data originating in a lower security zone, use a controlled DMZ pattern to avoid direct trust relationships and to support compliance, auditability, and resilience.
+
+### Recommended DMZ broker patterns
+
+- **OT Splunk to DMZ broker (push):** OT producers forward only approved datasets to a DMZ broker instance.
+
+- **IT Splunk from DMZ broker (pull):** IT consumers pull only from the DMZ broker instance using approved service identities and allowlisted interfaces.
+
+**DMZ enforcement expectations**
+
+- Enforce segregation and compliance isolation through index strategy and governance rules.
+
+- Apply minimization plus anonymization or obfuscation before exposure across zones.
+
+- Ensure RBAC remains consistent and auditable from identity to governed datasets.
+
+## Outbound interfaces
+
+- **Default stance:** Splunk is a system of evidence; data egress is allowed only for approved business/operational outcomes (SOC/NOC workflows, compliance reporting, enrichment services, AI/analytics pipelines) and must not bypass RBAC or classification boundaries.
+
+- **No “side channels”:** Exports, APIs, and integrations must use defined/monitored endpoints, with service identities and allowlists, and must meet audit logging requirements for regulated/sensitive data.
+
+## Innovation-enabled interfaces
+
+Innovation is encouraged when implemented as a managed, reviewable pattern that does not bypass zoning, RBAC, or compliance controls.
+
+- **Custom Splunk-side development:** Custom commands and code run with the effective permissions of the invoking user and remain subject to Splunk RBAC and data classification rules. Any new data flows must be consistent with data classification and network zoning.
+
+- **Containers and supporting services:** Kubernetes and containers are allowed for supporting components (external services, ML jobs, enrichment APIs) when treated as managed services with clear ownership and alignment to network zoning and Zero Trust policies.
+
+- **Sandbox for rapid prototyping:** A temporary onboarding process is permitted for proof-of-concept and troubleshooting using `tmp_` indexes, short retention, explicit expiration dates, and a strict prohibition on regulated or highly sensitive production data.
+
+# AI Training and Inference
+
+This section defines how AI can be trained and used with Splunk and operational/security data while enabling innovation and maintaining security, compliance, reliability, resilience, and operational integrity. It separates the **training plane** from the **inference plane**, enforces RBAC throughout, and ensures AI never compromises safety or the immutability of evidence.
+
+## Separation of planes
+
+- **Training plane:** Dataset creation, preparation, training, and validation. Training plane controls focus on data location, sample set handling, lineage, and approval.
+
+- **Inference plane:** Execution of approved models against permitted data to produce **derived outputs** (scores, tags, summaries, anomaly indicators). Inference may be hosted on Splunk search heads, on-prem inference services, or cloud inference services, as long as compliance, security, RBAC, and audit expectations are met.
+
+## Training rules
+
+**Training Rule 1: Data location and classification are enforced**
+
+OT, operational, and highly sensitive data stay on-prem in OAP; CAP works with enterprise and external data plus only approved aggregates from OAP.
+
+**Training Rule 2: Safe sharing uses aggregation and approved obfuscation**
+
+When broader visibility is needed, produce aggregated KPI-level outputs or apply approved obfuscation techniques, and share only those safe outputs.
+
+**Training Rule 3: Cloud training safeguard prohibits unsafe training or prompting**
+
+No external or cloud-hosted AI or large language model may be trained on or prompted with raw OT telemetry, sensitive security logs, or regulated personal data, allowed classes and contractual safeguards are governed.
+
+**Training Rule 4: RBAC applies throughout training, including sample set creation**
+
+Implement RBAC across all tiers of data and for all AI and ML workloads including during training.
+
+**Training Rule 5: Sample sets are controlled, minimal, and traceable**
+
+Training sample sets must be purpose-bound to an approved use case, minimized to necessary fields, anonymized or obfuscated when required, and tracked for lineage (source to transforms to dataset to model artifact). This aligns with the strategy requirement that AI usage, data flows, and key decisions are auditable and traceable.
+
+**Training Rule 6: Cross-platform and cross-zone flows are auditable and reviewable**
+
+All OAP and CAP data flows must pass through defined, monitored interfaces, with metadata logged and retained for review (who, what, when, why, and under which rule).
+
+## Inference rules
+
+**Inference Rule 1: Inference runs under RBAC and least privilege**
+
+RBAC applies to all AI workloads, including inference. Inference must not expand access beyond what the requesting identity or approved service identity is authorized to access.
+
+**Inference Rule 2: Inference plane placement is allowed with compliance controls**
+
+Inference components may exist on Splunk search heads, cloud, or on-prem solutions, provided data location rules and safe-sharing rules are honored (for example, CAP consumes approved aggregates; OAP handles OT and operational data).
+
+**Inference Rule 3: Prompts, context, and network flows must be explicitly defined and reviewed**
+
+For any LLM or external inference service, network flows, authentication, prompt construction rules, allowed context fields, logging, and retention must be documented, reviewed, and periodically re-reviewed under the auditability requirement.
+
+**Inference Rule 4: Generative AI use is permitted only under explicit guardrails**
+
+On-prem generative AI, including Splunk-inherent LLM capabilities, may be used when air-gapped or when explicitly approved with documented flows, prompts, RBAC enforcement, and audit logs. Other LLMs may be considered only under the same documented-and-reviewed requirements and must obey the cloud training safeguard for prohibited data classes.
+
+**Inference Rule 5: No autonomy**
+
+No AI solution may compromise safety, reliability, or regulatory obligations, and there are no autonomous controls. AI recommends and humans decide for critical or high-impact operational decisions. Any exception requires explicit approval from the one of the senior leaders of Technical Services.
+
+**Inference Rule 6: Preserve immutability of evidence**
+
+AI outputs must be additive and derived (for example, enriched fields, risk scores, anomaly indicators, summaries) and must not alter, rewrite, or “correct” original events. Splunk remains a system of evidence and audit; AI must not undermine the immutability and traceability expectations.
+
+# Change & Release Management
+
+Change and Release Management ensures the Splunk platform remains secure, compliant, reliable, resilient, and operationally supportable while enabling teams to deliver enhancements and onboard new data safely. The approach balances agility with control by using risk-based change tiers, strong testing and validation, and clear approval and rollback expectations.
+
+This section does not cover underlying architecture changes including operating system changes and only focuses on Splunk as a platform.
+
+## Scope
+
+- Change and Release Management applies to the items below, and the classification for each type of change must be defined.Splunk core platform upgrades and patches (search heads, indexers, cluster manager, deployer, deployment server, heavy forwarders, edge/ingestion tier)
+
+- Configuration changes (inputs, outputs, props/transforms, index strategy, retention, RBAC, authentication, certificates, network flows)
+
+- Knowledge objects (dashboards, alerts, correlation searches, reports, lookups, macros, data models)
+
+- Integrations (HEC endpoints, APIs, syslog feeds, third-party apps, containerized enrichment services)
+
+- Cross-zone and cross-platform data movement (including DMZ broker patterns)
+
+- AI-related integrations and inference services connected to Splunk (prompting, context retrieval, model endpoints)
+
+## Change classification
+
+Changes are categorized to ensure the level of control matches the risk.
+
+**Standard changes**
+
+- Pre-approved, low-risk, repeatable activities executed using documented runbooks (for example, onboarding a source using an approved pattern, routine certificate renewal, adding a user to an approved RBAC group).
+
+- Require validation steps and logging, but do not require a formal CAB meeting.
+
+**Normal changes**
+
+- Planned changes that require review and approval (for example, new sourcetype definitions, new index creation, new parsing logic, enabling a new integration endpoint).
+
+- Require a documented implementation plan, testing evidence, and a rollback plan.
+
+**Emergency changes**
+
+- Time-critical changes required to restore service or address active security risk.
+
+- Must still be logged and must be reviewed after implementation to confirm completeness, remove temporary exceptions, and capture lessons learned.
+
+## Environments and promotion path
+
+- **Development and test environments** are used to build and validate changes safely before impacting production.
+
+- **Sandbox onboarding** is permitted for proof-of-concept and troubleshooting with explicit expiration and short retention; it is not a bypass around production governance.
+
+- **Promotion to production** occurs only after documented validation and approval, with the minimum required privileges and clear ownership.
+
+## Testing and validation requirements
+
+All production-impacting changes must be validated based on the change type:
+
+**Functional validation**
+
+- Verify ingestion continuity, parsing accuracy, timestamps, host/source/sourcetype conventions, and expected fields.
+
+**Security and access validation**
+
+- Verify RBAC enforcement, least privilege, and that no new access paths were unintentionally introduced.
+
+- Confirm that cross-zone flows remain correct and constrained to approved interfaces.
+
+**Reliability and performance validation**
+
+- Validate expected indexing rates, latency, search performance, and resource utilization.
+
+- Confirm clustering health, replication/search factors, and site resiliency behavior where applicable.
+
+**Compliance validation**
+
+- Confirm regulated data remains in the correct indexes with correct retention and audit logging enabled.
+
+- Confirm anonymization/obfuscation controls remain in effect where required.
+
+**Operational readiness**
+
+- Update runbooks, monitoring, dashboards, and alert thresholds if the change alters behavior or dependencies.
+
+## Release planning and scheduling
+
+**Release cadence**
+
+- Core platform releases follow a defined cadence aligned to vendor support, security patch cycles, and operational windows.
+
+- High-risk changes are grouped into planned maintenance windows.
+
+**Change windows**
+
+- Changes affecting ingestion pipelines, indexing, clustering, or cross-zone flows are executed only during approved maintenance windows unless emergency conditions apply.
+
+**Communications**
+
+- Release notes are distributed to impacted stakeholders, including expected impacts, risk level, testing results, and rollback approach.
+
+## Approvals and decision rights
+
+Approvals depend on the change type and impacted scope:
+
+- **Platform Team approval** for platform configuration and operational changes
+
+- **Data Steward and Data Owner approval** for onboarding, sourcetype/source definitions, index strategy changes, and parsing changes
+
+- **Security and Compliance approval** for RBAC changes, new network flows, cross-zone patterns, regulated data handling, anonymization/obfuscation changes, and exception requests
+
+- **Architecture review** for major design changes, new platform components, and new integration patterns (including containers and external services)
+
+## Rollback and recovery expectations
+
+- Every Normal change must include a rollback plan and recovery steps.
+
+- Where rollback is not feasible (for example, some migrations), the plan must include compensating controls, staged cutovers, and a clear restoration approach.
+
+- Rollback steps must be practiced for high-impact releases and must be documented in runbooks.
+
+## Configuration management and traceability
+
+- Platform configuration must be version-controlled where feasible (deployment apps, patterns, documented baseline configurations).
+
+- Changes must be traceable to a request, owner, approver, and implementation record.
+
+- Temporary exceptions (including emergency access or temporary ingestion rules) must have an expiration date and must be removed or re-approved during periodic review.
+
+## Third-party apps and custom development controls
+
+- Third-party Splunk apps, add-ons, and custom commands must be security-reviewed and maintained through a lifecycle process (patching, deprecation, compatibility testing).
+
+- Custom code must not bypass RBAC or data classification boundaries and must be treated as production software with testing, logging, and peer review.
+
+## AI-related change controls
+
+- Any integration that sends data to an inference or LLM endpoint must define network flows, authentication, prompt/context rules, logging, and retention.
+
+- AI integrations must follow the separation of training and inference planes and must not introduce autonomous actions.
+
+- AI outputs must be additive and must not modify or overwrite original events to preserve evidence of integrity.
+
+## Post-release review and continuous improvement
+
+- Significant releases require a post-implementation review to confirm outcomes, capture issues, and update standards.
+
+- Incident learnings are fed back into runbooks, monitoring, and change patterns to reduce recurrence and improve platform resilience.
+
+# Training, Enablement & Adoption
+
+Training and enablement will be delivered through role-based learning paths. The intent is to ensure users can adopt Splunk safely and effectively, while maintaining security, compliance, reliability, resilience, and operational consistency.
+
+## Role-based training paths
+
+**Consumers (Operators, Analysts, Business Users)**
+
+- Splunk search basics (time bounding, fields, filters, pivoting)
+
+- Using standard dashboards, reports, and alerts
+
+- Interpreting derived signals and scores appropriately (no assumptions of autonomy)
+
+- Handling and sharing results in a compliant manner
+
+**Content Builders (Power Users, Detection Engineers, Dashboard Developers)**
+
+- Advanced SPL, search performance practices, scheduling basics
+
+- Building production-ready dashboards, reports, and alerts using standard naming and documentation
+
+- Working within RBAC constraints and designing content that respects segregation
+
+- Validating content before promotion to production
+
+**Data Onboarding Engineers**
+
+- Onboarding workflow and required documentation (ownership, classification, metadata standards)
+
+- Defining and applying source, sourcetype, and host standards
+
+- Field mapping, parsing, timestamp handling, and normalization
+
+- Data minimization plus anonymization/obfuscation where required, including regulated data handling
+
+- Cross-zone onboarding patterns such as OT to DMZ to IT
+
+**Platform Administrators**
+
+- Core administration and platform operations (roles, indexing, search head operations)
+
+- Deployment practices and configuration management
+
+- Authentication, RBAC administration, certificates, and secure administration
+
+- Monitoring, capacity management, upgrades, backup, and recovery procedures
+
+**OT Stakeholders**
+
+- OT telemetry onboarding patterns and OT asset identification standards
+
+- Operational safety expectations and disciplined change control
+
+- Cross-zone visibility and data sharing patterns aligned to zoning and compliance requirements
+
+## Additional enablement considerations
+
+Additional elements such as enablement assets, adoption support models, service KPIs, training completion tracking, and broader adoption metrics may be defined later. It is recommended that managers review these strategically over time and implement them in a way that aligns to organizational maturity, capacity, and priority use cases.
+
+# Roadmap & Phased Implementation Plan
+
+This roadmap provides a strategic, phased approach to establish Splunk as a secure, compliant, reliable, resilient enterprise service across I&T. Phases may overlap based on resourcing, dependencies, and priority use cases. Each phase should include clear entry and exit criteria so progress is measurable and governance remains enforceable.
+
+## Phase 0: Capability readiness and mobilization
+
+- Establish platform ownership, governance decision rights, and an operating model that includes OT, IT, cybersecurity, and compliance stakeholders.
+
+- Confirm skill coverage and role-based training needs for platform administration, data onboarding, detection/content development, and operational support.
+
+- Align stakeholders on initial scope, success measures, and priority outcomes (reliability, security monitoring, regulatory reporting, OT visibility).
+
+- Define the initial intake process for new data sources and use cases, including approvals and periodic review expectations.
+
+## Phase 1: Infrastructure and topology design
+
+- Finalize the target Splunk topology (indexing, search, ingestion tier, management components) and the resiliency posture aligned to availability and recovery objectives.
+
+- Complete sizing and capacity assumptions (ingest rates, retention tiers, performance targets, storage IOPS), with a plan for growth.
+
+- Define network segmentation, firewall rules, and Zero Trust-aligned flows across security zones, including where DMZ patterns are required.
+
+- Confirm security foundations (authentication approach, certificate strategy, admin access paths, audit logging requirements).
+
+## Phase 2: Hardware procurement and environment strategy
+
+- Procure hardware and supporting infrastructure based on approved sizing and resiliency design.
+
+Define an environment strategy that supports controlled promotion and risk reduction:
+
+- A dedicated test implementation environment built after hardware is received, separate from production.
+
+- A production environment that is built only after testing implementation acceptance is complete.
+
+Establish the policy for test data usage (prefer synthetic, replayed, or anonymized datasets; limit regulated or highly sensitive data unless explicitly approved).
+
+## Phase 3: Test implementation build and validation
+
+- Build a non-production Splunk environment that mirrors production patterns as closely as practical (ingestion boundary approach, indexing/search separation, RBAC foundations, monitoring).
+
+- Validate baseline platform operations: health monitoring, backup and recovery approach, performance baselines, upgrade approach, and operational runbooks.
+
+- Validate security and compliance controls: RBAC behavior, audit logging, zoning flows, data segregation expectations, and exception handling process.
+
+- Use the test implementation to prove the “golden paths” for onboarding and content promotion before production rollout.
+
+**In this phase, limited-scope trial and error is acceptable in the test environment, and temporary control exceptions may be permitted as long as the environment remains strictly non-production and all deviations are documented and time-bounded.**
+
+## Phase 4: Data architecture and onboarding framework
+
+- Create the enterprise data onboarding framework, including data classification mapping, index strategy, retention tiers, and metadata standards (source, sourcetype, host).
+
+- Inventory and prioritize data sources from OT, IT, SOC, and compliance perspectives, including volume estimates and retention requirements.
+
+- Establish parsing, normalization, enrichment, tagging standards, and field mapping governance so production onboarding is predictable and supportable.
+
+- Define cross-zone data movement patterns where needed, including brokered approaches such as OT to DMZ to IT, with minimization and obfuscation where required.
+
+## Phase 5: Core production build and hardening
+
+- Build the production Splunk platform aligned to the approved topology, resiliency posture, and security requirements.
+
+- Implement baseline RBAC structures, index segregation, and audit controls.
+
+- Establish operational readiness: monitoring, alerting, capacity tracking, incident response procedures, and platform support model.
+
+- Confirm release discipline and configuration management approach so production does not drift.
+
+## Phase 6: Initial data onboarding and priority use cases
+
+- Onboard an initial set of high-value data sources using governed patterns and validated onboarding practices.
+
+- Deliver initial dashboards, alerts, and reports tied to agreed outcomes (operations reliability, OT visibility, cybersecurity monitoring, compliance evidence).
+
+- Establish a repeatable promotion path from test to production for data onboarding changes, apps, and knowledge objects.
+
+## Phase 7: Production rollout and scaling
+
+- Expand onboarding to additional sources and business domains using standardized intake, approval, and periodic review processes.
+
+- Mature operational controls: tuning and optimization, lifecycle management, cost awareness, and ongoing resiliency validation.
+
+- Reduce exceptions by migrating ad hoc integrations toward approved patterns (ingestion tier, DMZ brokering, governed APIs, containerized services as managed components).
+
+## Phase 8: Optimization and continuous improvement
+
+- Optimize performance, retention alignment, and operational efficiency based on observed usage and growth.
+
+- Operationalize regular service reviews (health, capacity, reliability incidents, security posture, onboarding throughput).
+
+- Continuously improve content quality (detections, dashboards, correlation) and retire low-value data or content to control cost and complexity.
+
+## Phase 9: AI and machine learning enablement
+
+- Introduce AI capabilities only after foundational governance, RBAC, zoning, and data quality controls are stable.
+
+- Operationalize separation of training and inference planes, with clear rules for data handling, access, and auditability.
+
+- Enable inference in approved locations (search head, on-prem inference services, or cloud inference services) subject to classification, security zone constraints, and explicit review of network flows, prompts, and logging.
+
+- Keep AI outputs additive and derived, preserve immutability of original events, and prohibit autonomous actions in all cases.
+
+## Strategic note on sequencing
+
+Managers may adjust sequencing based on business priorities, but the roadmap assumes a disciplined progression: establish governance and foundations first, validate in a test implementation environment, then scale production onboarding and use cases, and only then expand into advanced analytics and AI enablement.
+
+# Risk Management & Assumptions
+
+This section identifies key risks and planning assumptions for implementing and operating Splunk as an enterprise service across I&T. The intent is to reduce delivery risk, protect regulated environments, and ensure the platform remains secure, compliant, reliable, resilient, and operationally supportable.
+
+## Risks
+
+**Security zone boundary and cross-zone data movement risk**
+
+- Risk that uncontrolled flows between higher and lower security zones could create unacceptable exposure or compliance violations.
+
+- Mitigation: enforce deny-by-default network posture, brokered patterns (such as DMZ), explicit allowlists, RBAC enforcement, and periodic review of inbound interfaces and cross-zone flows.
+
+**Regulatory and compliance risk (including CIP)**
+
+- Risk that regulated data is not properly segregated, retained, audited, or handled according to policy and regulatory expectations.
+
+- Mitigation: encode compliance drivers in index strategy, enforce RBAC aligned to classification, maintain audit logging, and require documented onboarding and field mapping approvals.
+
+**Data quality and metadata inconsistency risk**
+
+- Risk that inconsistent source, sourcetype, and host practices reduce correlation, impact dashboards/detections, and increase support burden.
+
+- Mitigation: enforce metadata standards, maintain a custodian-managed registry of source and sourcetype definitions, and require validation prior to production onboarding.
+
+**Scope growth and platform cost risk**
+
+- Risk that onboarding volume grows faster than capacity planning, increasing licensing, storage, and operational cost, and reducing performance.
+
+- Mitigation: use phased onboarding, prioritize high-value use cases, apply data minimization at ingestion, and continuously review retention tiers and data value.
+
+**Operational reliability and resiliency risk**
+
+- Risk that platform outages, ingestion delays, or cluster misconfiguration reduce visibility during incidents and impact operations.
+
+- Mitigation: design for HA/DR, implement monitoring and alerting, maintain runbooks, test recovery procedures, and enforce disciplined change and release management.
+
+**RBAC drift and privileged access risk**
+
+- Risk that access expands over time, exceptions become permanent, or privileged roles are overused.
+
+- Mitigation: role-based access tied to classification, periodic access reviews, time-bounded exceptions, and audit logging with review.
+
+**Integration and customization risk**
+
+- Risk that custom apps, modular inputs, scripts, containers, or external services introduce vulnerabilities, bypass controls, or increase support complexity.
+
+- Mitigation: approve integration patterns, require security review, document network flows and identities, enforce RBAC, and manage lifecycle/patching.
+
+**Cross-functional dependency risk**
+
+- Risk that delivery is delayed due to dependencies on network/firewall changes, PKI/certificates, identity integration, OT stakeholder alignment, or procurement lead times.
+
+- Mitigation: formalize dependencies early, create a shared delivery plan with owners, and validate feasibility in the test implementation phase.
+
+**AI and generative AI risk**
+
+- Risk that LLM usage introduces data leakage, unapproved prompting, insufficient auditability, or unsafe operational outcomes.
+
+- Mitigation: separation of training and inference planes, explicit rules for prompts/context and network flows, approval and periodic review, full logging, additive-only outputs, and no autonomous actions.
+
+## Assumptions
+
+**Governance and ownership**
+
+- A platform owner and platform team are assigned with clear decision rights for standards, operations, onboarding gates, and exceptions.
+
+- Data owners and custodians exist and can approve onboarding intent, metadata definitions, and periodic reviews.
+
+**Security and compliance participation**
+
+- Security and compliance stakeholders are available to approve zoning flows, RBAC design, regulated data handling, and exception requests.
+
+- Regulatory requirements (including CIP where applicable) are defined sufficiently to map to indexing, retention, and audit controls.
+
+**Infrastructure readiness**
+
+- Required hardware, storage, and network capacity will be available according to sizing and resiliency design.
+
+- Certificate management (PKI), identity integration, and time synchronization are available and can be implemented consistently.
+
+**Environment strategy**
+
+- A strictly non-production test implementation environment will be built after hardware procurement to validate topology, controls, onboarding patterns, and operational readiness prior to production rollout.
+
+- Test data will be synthetic, replayed, or anonymized by default; use of regulated or highly sensitive production data in test requires explicit approval.
+
+**Data onboarding discipline**
+
+- Production ingestion will follow the governed intake and approval workflow and will adhere to metadata standards and required documentation.
+
+- Source systems will provide stable identifiers (CMDB/FQDN or OT asset identifiers) to support host naming and correlation.
+
+**Operational support**
+
+- Runbooks, monitoring, and a support model (including escalation) will be established before broad production scaling.
+
+- Change and release management practices will be applied consistently to avoid drift and protect platform stability.
+
+**Innovation within guardrails**
+
+Teams may propose innovative integrations (including containers and service-based access) as long as network flows, access controls, compliance needs, and logging are defined, reviewed, and approved.
+
+# KPIs, Value Realization & FinOps Metrics
+
+Splunk should be managed as an enterprise service with the focus on operational areas (IT vs. OT) with measurable outcomes. Managers should define and maintain a small set of KPIs and value metrics that reflect organizational priorities (security, compliance, reliability, resilience, and operational effectiveness) and adjust them over time as maturity increases. Metrics should be reviewed on a regular cadence and used to drive prioritization, onboarding decisions, and continuous improvement.
+
+## Minimum KPI categories to define
+
+Managers should establish targets and reporting for metrics in these areas:
+
+> **Service health and reliability**
+
+Availability, incident frequency, mean time to detect and recover platform issues, ingestion latency, and search performance.
+
+> **Security and compliance**
+
+RBAC alignment and exception counts, privileged access usage, completion of periodic access/interface reviews, audit log completeness, and regulated-data handling adherence.
+
+> **Operational outcomes and value realization**
+
+Measurable improvements in operational reliability, faster incident response and troubleshooting, reduced downtime impacts, improved detection coverage, and increased automation of reporting or evidence collection.
+
+> **Adoption and enablement**
+
+Active usage by role, onboarding throughput, number of governed sources in production, and reuse of standard dashboards, detections, and onboarding patterns.
+
+## Minimum Ops metrics to define
+
+Managers should define cost and efficiency measures that ensure Splunk remains sustainable:
+
+**Cost drivers**
+
+Ingest volume trends, retention consumption, storage growth, compute utilization, and licensing alignment to actual usage.
+
+**Efficiency and waste reduction**
+
+Percentage of ingest reduced through filtering/minimization, duplicate/noisy data reduction, “low-value data” retirement, and optimization of retention tiers.
+
+**Unit economics**
+
+Cost per onboarded data source, cost per use case supported, and cost per operational outcome (where practical).
+
+## Strategic guidance
+
+Managers should keep the initial metric set small, focus on actionable measures, and evolve the KPI and FinOps framework as the platform matures. Metrics should directly influence roadmap sequencing, onboarding priorities, and decisions to optimize, expand, or retire data and content.

@@ -1,0 +1,464 @@
+# Legacy -> governed mapping for Tri-State's Splunk estate.
+#
+# Status: PROPOSED (ADR-008). Every classification here is a best-judgment
+# proposal for Reza to amend; nothing is approved.
+#
+# Rules are evaluated in order per legacy index; first match wins. `match` is
+# a glob against the legacy sourcetype. Templates available in the sourcetype
+# and source fields:
+#     {tail_lower}      last colon-segment of the legacy sourcetype, lowercased
+#     {st_lower}        whole legacy sourcetype, lowercased
+#     {src_tail_lower}  last colon-segment of the legacy source, lowercased
+#     {src_lower}       whole legacy source, lowercased
+#     {src_slug}        whole legacy source, lowercased and reduced to
+#                       tag-legal characters (needed where the legacy source
+#                       is a search name containing spaces and punctuation)
+#     {src_tail_slug}   last colon-segment of the legacy source, slugified
+#
+# There is deliberately no global catch-all: an unmatched value is reported as
+# a mapping gap by `make profile` rather than silently absorbed. That is what
+# makes a new production export surface its own new feeds.
+
+version: 1
+status: proposed
+
+# ADR-008 D2: sources are rewritten to governed values on ingest.
+source_policy: rewrite
+
+quarantine_index: ops_non_inf_bad_s
+
+legacy_indexes:
+
+  # ---- Network infrastructure -> ops_non_inf_ndl_m -----------------------
+  arista:
+    note: Arista switch syslog
+    rules:
+      - match: "*"
+        index: ops_non_inf_ndl_m
+        sourcetype: arista:switch:syslog
+        source: net:arista:switch:syslog
+
+  aruba:
+    note: Aruba wireless controllers and APs; 15 per-process sourcetypes
+    rules:
+      - match: "aruba:*"
+        index: ops_non_inf_ndl_m
+        sourcetype: "aruba:wireless:{tail_lower}"
+        source: net:aruba:wireless:syslog
+      - match: "aruba"
+        index: ops_non_inf_ndl_m
+        sourcetype: aruba:wireless:system
+        source: net:aruba:wireless:syslog
+
+  cisco:
+    note: Cisco IOS switches and routers
+    rules:
+      - match: "cisco:*"
+        index: ops_non_inf_ndl_m
+        sourcetype: "{st_lower}"
+        source: net:cisco:ios:syslog
+
+  f5:
+    note: F5 BIG-IP application delivery controllers
+    rules:
+      - match: "f5:*"
+        index: ops_non_inf_ndl_m
+        sourcetype: "{st_lower}"
+        source: net:f5:bigip:syslog
+
+  # ---- Storage -> ops_non_inf_stg_m --------------------------------------
+  brocade:
+    note: Brocade fibre-channel fabric switches
+    rules:
+      - match: "*"
+        index: ops_non_inf_stg_m
+        sourcetype: brocade:fabric:syslog
+        source: net:brocade:fabric:syslog
+
+  netapp:
+    note: NetApp ONTAP storage controllers
+    rules:
+      - match: "*"
+        index: ops_non_inf_stg_m
+        sourcetype: netapp:ontap:syslog
+        source: net:netapp:ontap:syslog
+
+  # ---- DNS / DHCP / IPAM -> ops_non_inf_dns_m ----------------------------
+  infoblox:
+    note: Infoblox DNS, DHCP, and port control
+    rules:
+      - match: "infoblox:*"
+        index: ops_non_inf_dns_m
+        sourcetype: "{st_lower}"
+        source: "net:infoblox:{tail_lower}"
+
+  # ---- Linux -> ops_non_inf_lin_m ---------------------------------------
+  osnix:
+    note: Linux and UNIX hosts
+    rules:
+      - match: "linux_messages_syslog"
+        index: ops_non_inf_lin_m
+        sourcetype: linux:system:messages
+        source: file:linux:messages
+      # Authentication and sudo activity: Class 5, matching the oswin vs
+      # oswinsec split. General Linux telemetry stays operational.
+      - match: "linux_secure"
+        index: res_non_sec_lin_l
+        sourcetype: linux:system:secure
+        source: file:linux:secure
+      - match: "syslog"
+        index: ops_non_inf_lin_m
+        sourcetype: linux:system:syslog
+        source: net:linux:syslog
+
+  # ---- Windows: event logs, host monitoring, and security are split -----
+  oswin:
+    note: Windows servers, operational event logs
+    rules:
+      - match: "XmlWinEventLog"
+        index: ops_non_inf_win_m
+        sourcetype: microsoft:windows:eventlog:xml
+        source: "win:eventlog:{src_tail_lower}"
+
+  oswinsec:
+    note: Windows security event logs — Class 5, separated from oswin
+    rules:
+      - match: "XmlWinEventLog"
+        index: res_non_sec_win_l
+        sourcetype: microsoft:windows:eventlog:xml
+        source: win:eventlog:security
+
+  snare_logs:
+    note: Windows event logs relayed via Snare
+    rules:
+      - match: "wineventlog"
+        index: ops_non_inf_win_m
+        sourcetype: microsoft:windows:eventlog:snare
+        source: net:snare:windows:eventlog
+
+  nps_server:
+    note: >-
+      SPLIT (ADR-008 D4). Host-monitoring telemetry is operational; NPS/RADIUS
+      authentication events are identity data and belong in Class 5.
+    rules:
+      - match: "WinHostMon"
+        index: ops_non_inf_whm_s
+        sourcetype: microsoft:windows:hostmon
+        source: "win:hostmon:{src_slug}"
+      - match: "XmlWinEventLog"
+        index: res_non_sec_iam_nps_l
+        sourcetype: microsoft:windows:eventlog:xml
+        source: "win:nps:eventlog:{src_tail_lower}"
+
+  # ---- Virtualization -> ops_non_inf_vmw_s (high volume, low value) -----
+  vmware:
+    note: VMware ESXi hosts; 45 sourcetypes, many mixed-case
+    rules:
+      - match: "vmware:esxlog:*"
+        index: ops_non_inf_vmw_s
+        sourcetype: "vmware:esxlog:{tail_lower}"
+        source: net:vmware:esx:syslog
+      - match: "vmw-syslog"
+        index: ops_non_inf_vmw_s
+        sourcetype: vmware:esx:syslog
+        source: net:vmware:esx:syslog
+      - match: "vmware:*"
+        index: ops_non_inf_vmw_s
+        sourcetype: "{st_lower}"
+        source: net:vmware:esx:syslog
+
+  # ---- Oracle: SPLIT per ADR-008 D4 ------------------------------------
+  oracle:
+    note: >-
+      SPLIT. OCI infrastructure audit is operational; Oracle identity and MFA
+      events are Class 5. The 117 legacy sourcetypes collapse to 4 because the
+      sourcetype was being assigned from the API operation name (105 distinct
+      com.oraclecloud.* values) and from MFA factor names. Truncated values are
+      an upstream parsing defect and are quarantined.
+    rules:
+      - match: "com.oraclecloud*"
+        index: ops_non_inf_ocl_m
+        sourcetype: oracle:oci:audit
+        source: api:oracle:oci:audit
+      - match: "oci_logging"
+        index: ops_non_inf_ocl_m
+        sourcetype: oracle:oci:logging
+        source: api:oracle:oci:logging
+      - match: "User"
+        index: res_non_sec_iam_oci_l
+        sourcetype: oracle:idcs:audit
+        source: api:oracle:idcs:audit
+      - match: "App"
+        index: res_non_sec_iam_oci_l
+        sourcetype: oracle:idcs:audit
+        source: api:oracle:idcs:audit
+      - match: "TOTP"
+        index: res_non_sec_iam_oci_l
+        sourcetype: oracle:idcs:mfa
+        source: api:oracle:idcs:mfa
+      - match: "SMS"
+        index: res_non_sec_iam_oci_l
+        sourcetype: oracle:idcs:mfa
+        source: api:oracle:idcs:mfa
+      - match: "PHONE_CALL"
+        index: res_non_sec_iam_oci_l
+        sourcetype: oracle:idcs:mfa
+        source: api:oracle:idcs:mfa
+      # Truncated sourcetype values — real upstream defect, quarantined
+      - match: "com.or"
+        index: ops_non_inf_bad_s
+        sourcetype: oracle:oci:malformed
+        source: api:oracle:oci:audit
+        quarantine_reason: truncated sourcetype value
+      - match: "com.orac"
+        index: ops_non_inf_bad_s
+        sourcetype: oracle:oci:malformed
+        source: api:oracle:oci:audit
+        quarantine_reason: truncated sourcetype value
+      - match: "com.oracle"
+        index: ops_non_inf_bad_s
+        sourcetype: oracle:oci:malformed
+        source: api:oracle:oci:audit
+        quarantine_reason: truncated sourcetype value
+      - match: "com.oraclecl"
+        index: ops_non_inf_bad_s
+        sourcetype: oracle:oci:malformed
+        source: api:oracle:oci:audit
+        quarantine_reason: truncated sourcetype value
+      - match: "work"
+        index: ops_non_inf_bad_s
+        sourcetype: oracle:unclassified
+        source: api:oracle:unclassified
+        quarantine_reason: unidentified feed, owner confirmation needed
+      - match: "recovery"
+        index: ops_non_inf_bad_s
+        sourcetype: oracle:unclassified
+        source: api:oracle:unclassified
+        quarantine_reason: unidentified feed, owner confirmation needed
+
+  # ---- Identity: one index per provider, so a role can be scoped to one --
+# ---- IdP or granted all of them with res_non_sec_iam_* ----------------
+  azure_ad:
+    note: Entra ID / Azure AD audit, sign-in, user, and device
+    rules:
+      - match: "azure:aad:*"
+        index: res_non_sec_iam_aad_l
+        sourcetype: "{st_lower}"
+        source: "api:azure:aad:{tail_lower}"
+
+  msad:
+    note: On-premises Active Directory
+    rules:
+      - match: "ActiveDirectory"
+        index: res_non_sec_iam_ad_m
+        sourcetype: microsoft:ad:directory
+        source: api:msad:directory
+
+  okta:
+    note: Okta identity platform
+    rules:
+      - match: "OktaIM2:log"
+        index: res_non_sec_iam_okt_l
+        sourcetype: okta:identity:log
+        source: api:okta:identity:log
+
+  # ---- Security tooling -> res_* ---------------------------------------
+  azure:
+    note: Microsoft Defender via Azure Event Hub
+    rules:
+      - match: "ms:defender:eventhub"
+        index: res_non_sec_edr_l
+        sourcetype: microsoft:defender:eventhub
+        source: api:azure:eventhub:defender
+
+  palo_alto:
+    note: Palo Alto firewalls — traffic, threat, GlobalProtect, HIP, system
+    rules:
+      - match: "pan:*"
+        index: res_non_sec_fwl_l
+        sourcetype: "{st_lower}"
+        source: "net:paloalto:pan:{tail_lower}"
+
+  forescout:
+    note: Forescout CounterACT network access control
+    rules:
+      - match: "fsctcenter_avp"
+        index: res_non_sec_nac_m
+        sourcetype: forescout:counteract:avp
+        source: net:forescout:counteract:syslog
+      - match: "fsctcenter_json"
+        index: res_non_sec_nac_m
+        sourcetype: forescout:counteract:json
+        source: api:forescout:counteract:events
+
+  varonis:
+    note: Varonis data security platform
+    rules:
+      - match: "varonis:*"
+        index: res_non_sec_dlp_l
+        sourcetype: varonis:datasecurity:audit
+        source: api:varonis:datasecurity
+
+  thales_hsm:
+    note: >-
+      Thales HSM. Compliance driver pci is a best guess (ADR-008 D4) — HSMs are
+      normally in PCI scope. Confirm; this is the only real PCI feed and it
+      carries the compliance-isolation test.
+    rules:
+      - match: "*"
+        index: res_pci_sec_hsm_l
+        sourcetype: thales:hsm:syslog
+        source: net:thales:hsm:syslog
+
+  # ---- Business applications -> ent_* ----------------------------------
+  o365:
+    note: >-
+      SPLIT. Defender incident data is Class 5 security and joins the EDR
+      index; management activity and service health are Class 2.
+    rules:
+      - match: "ms365:defender:*"
+        index: res_non_sec_edr_l
+        sourcetype: "{st_lower}"
+        source: api:ms365:defender:incident
+      - match: "o365:management:activity"
+        index: ent_non_app_col_o365_m
+        sourcetype: o365:management:activity
+        source: api:o365:management:activity
+      - match: "o365:service:*"
+        index: ent_non_app_col_o365_m
+        sourcetype: "{st_lower}"
+        source: "api:o365:service:{tail_lower}"
+
+  servicenow:
+    note: ServiceNow CMDB and ITSM
+    rules:
+      - match: "snow:*"
+        index: ent_non_app_itm_m
+        sourcetype: servicenow:cmdb:ci
+        source: api:servicenow:cmdb:ci
+
+  # ---- Enterprise Security internals: names kept (ADR-008 D3) ----------
+  # The `stash` sourcetype is also vendor-mandated: Splunk requires it for
+  # summary-indexed data, and renaming it changes license accounting.
+  notable:
+    note: ES notable events
+    naming_exception: vendor_mandated
+    rules:
+      - match: "stash"
+        index: notable
+        sourcetype: stash
+        source: "es:notable:{src_slug}"
+
+  risk:
+    note: ES risk index
+    naming_exception: vendor_mandated
+    rules:
+      - match: "stash"
+        index: risk
+        sourcetype: stash
+        source: "es:risk:{src_slug}"
+
+  threat_activity:
+    note: ES threat activity
+    naming_exception: vendor_mandated
+    rules:
+      - match: "stash"
+        index: threat_activity
+        sourcetype: stash
+        source: "es:threat:{src_slug}"
+
+  gia_summary:
+    note: ES geographically improbable access summary
+    naming_exception: vendor_mandated
+    rules:
+      - match: "stash"
+        index: gia_summary
+        sourcetype: stash
+        source: es:summary:gia
+
+  endpoint_summary:
+    note: ES endpoint summary
+    naming_exception: vendor_mandated
+    rules:
+      - match: "stash"
+        index: endpoint_summary
+        sourcetype: stash
+        source: es:summary:endpoint
+
+  cim_modactions:
+    note: CIM modular alert action logs
+    naming_exception: vendor_mandated
+    rules:
+      - match: "modular_alerts:*"
+        index: cim_modactions
+        sourcetype: "{st_lower}"
+        source: "splunk:modalert:{tail_lower}"
+
+  summary:
+    note: General summary indexing
+    naming_exception: vendor_mandated
+    rules:
+      - match: "stash"
+        index: summary
+        sourcetype: stash
+        source: "splunk:summary:{src_slug}"
+
+  ers:
+    note: >-
+      ES Entity Risk Score machinery (identified ADR-008 D4 from
+      search_name="Risk - EWA Entity Risk Score Calculation").
+    naming_exception: vendor_mandated
+    rules:
+      - match: "stash"
+        index: ers
+        sourcetype: stash
+        source: "es:ers:{src_slug}"
+      - match: "json"
+        index: ers
+        sourcetype: splunk:ers:diagnostics
+        source: es:ers:diagnostics
+
+  dlx_kpi:
+    note: >-
+      Detection coverage and health KPIs (identified ADR-008 D4 from the
+      coverage/confidence/performance/detection_id field set).
+    naming_exception: vendor_mandated
+    rules:
+      - match: "stash"
+        index: dlx_kpi
+        sourcetype: stash
+        source: "es:dlx:{src_slug}"
+
+# ---- Synthetic coverage fixtures (ADR-008 D1) --------------------------
+# Not present in any production export. These exist so the class x compliance
+# matrix has no empty cell that an RBAC scenario needs. Event content is
+# irrelevant to RBAC; only the metadata matters. A real OT export can replace
+# a fixture by adding a legacy_indexes entry that targets the same index.
+coverage_fixtures:
+  ctl_cip_ics_scd_s:
+    reason: >-
+      No Class 4 (Control/OT) and no NERC CIP data exists in the export, so
+      OT isolation and CIP scoping would be untestable.
+    class: ctl
+    compliance: cip
+    sourcetype: scada:historian:telemetry
+    source: ot:substation:scada
+    events: 200
+  ctl_non_ics_hst_m:
+    reason: >-
+      A non-regulated Class 4 index, so compliance isolation can be tested
+      within a single class (CIP vs non-CIP) rather than only across classes.
+    class: ctl
+    compliance: non
+    sourcetype: historian:process:telemetry
+    source: ot:plant:historian
+    events: 200
+  pub_non_app_wea_s:
+    reason: >-
+      No Class 1 (Public) data exists in the export, so the lowest
+      sensitivity tier and the broadest data bundle would be untestable.
+    class: pub
+    compliance: non
+    sourcetype: noaa:weather:observation
+    source: api:noaa:weather
+    events: 100

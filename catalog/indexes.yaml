@@ -1,0 +1,539 @@
+# ---------------------------------------------------------------------------
+# indexes.yaml — governed index register (the strategy's Data Catalog).
+#
+# One entry per index. data_class, compliance, domain, content, detail, and
+# retention restate what the name encodes, so the register is readable on its
+# own; static tests assert they agree with the name and with taxonomy.yaml, so
+# a disagreement fails the build rather than sitting unnoticed.
+#
+# prod_source lists the production feeds that land here, from mapping.yaml.
+# Owner codes come from business_units.yaml. confidence flags review effort:
+#   high    follows from what the feed is; confirm in passing
+#   medium  defensible, but the split could reasonably differ
+#   low     needs a decision — owner_rationale says what is uncertain
+#
+# Status: RECOMMENDED, not approved. Authority: Reza Hosseiny.
+# ---------------------------------------------------------------------------
+
+indexes:
+
+  - name: cim_modactions
+    description: >-
+      CIM modular alert action logs.
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: sec_cyber
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      ES machinery.
+    prod_source: [cim_modactions]
+
+  - name: ctl_cip_ics_scd_s
+    description: >-
+      SCADA telemetry under NERC CIP. Synthetic coverage fixture — no Class 4
+      data exists in the export (ADR-008 D1). A real OT export replaces it
+      through the same mapping.
+    data_class: ctl          # Control
+    compliance: cip
+    domain: ics
+    content: scd             # SCADA telemetry
+    retention: _s             # Short term, 30 searchable days
+    owner_business: transmission_ops
+    owner_technical: operations_technology
+    confidence: medium
+    owner_rationale: >-
+      Transmission Ops depends on it; OT operates the systems. Compliance has
+      a standing interest via the cip driver.
+    prod_source: [(synthetic coverage fixture)]
+
+  - name: ctl_non_ics_hst_m
+    description: >-
+      Plant historian process telemetry, non-regulated. Synthetic coverage
+      fixture, so CIP and non-CIP can be compared within one class (ADR-008
+      D1).
+    data_class: ctl          # Control
+    compliance: non
+    domain: ics
+    content: hst             # OT historian / time series
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: generation_ops
+    owner_technical: operations_technology
+    confidence: medium
+    owner_rationale: >-
+      Generation Ops depends on it; OT operates it.
+    prod_source: [(synthetic coverage fixture)]
+
+  - name: dlx_kpi
+    description: >-
+      Detection coverage and health KPI summaries.
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: sec_cyber
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      Detection coverage and health KPIs.
+    prod_source: [dlx_kpi]
+
+  - name: endpoint_summary
+    description: >-
+      Enterprise Security endpoint summary generation.
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: sec_cyber
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      Cyber consumes; Observability runs the platform.
+    prod_source: [endpoint_summary]
+
+  - name: ent_non_app_col_o365_m
+    description: >-
+      Microsoft 365 unified audit activity and service health messages. 77% of
+      the sample export by volume.
+    data_class: ent          # Enterprise
+    compliance: non
+    domain: app
+    content: col             # Collaboration platform logs
+    detail: o365
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: business_services
+    owner_technical: it_euc
+    confidence: medium
+    owner_rationale: >-
+      Business Services depends on the collaboration estate; EUC operates it.
+    prod_source: [o365]
+
+  - name: ent_non_app_itm_m
+    description: >-
+      ServiceNow CMDB configuration items and ITSM records.
+    data_class: ent          # Enterprise
+    compliance: non
+    domain: app
+    content: itm             # IT service management
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: it_service_desk
+    owner_technical: it_service_desk
+    confidence: high
+    owner_rationale: >-
+      ServiceNow CMDB and ITSM.
+    prod_source: [servicenow]
+
+  - name: ers
+    description: >-
+      Entity risk scoring (EWA) outputs.
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: sec_cyber
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      ES entity risk scoring.
+    prod_source: [ers]
+
+  - name: gia_summary
+    description: >-
+      Enterprise Security geographically improbable access summary.
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: sec_cyber
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      Cyber consumes; Observability runs the platform.
+    prod_source: [gia_summary]
+
+  - name: notable
+    description: >-
+      Enterprise Security notable events.
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: sec_cyber
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      Cyber consumes; Observability runs the platform.
+    prod_source: [notable]
+
+  - name: ops_non_inf_bad_s
+    description: >-
+      Quarantine for data failing onboarding standards, per the strategy
+      Quarantine Protocol. Must not be swept into a wildcard data bundle: it
+      can hold misrouted sensitive content.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: bad             # Quarantined / rejected
+    retention: _s             # Short term, 30 searchable days
+    owner_business: it_observability
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      Platform-internal. The strategy makes the technical owner of the
+      offending feed responsible for each fix.
+    prod_source: [oracle]
+
+  - name: ops_non_inf_dns_m
+    description: >-
+      Infoblox DNS, DHCP, and port telemetry.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: dns             # DNS and DHCP
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: it_networking
+    owner_technical: it_networking
+    confidence: high
+    owner_rationale: >-
+      DNS, DHCP, and IPAM sit with Networking.
+    prod_source: [infoblox]
+
+  - name: ops_non_inf_lin_m
+    description: >-
+      General Linux syslog and messages. Authentication activity is separated
+      into res_non_sec_lin_l.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: lin             # Linux logs
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: it_infrastructure
+    owner_technical: it_infrastructure
+    confidence: high
+    owner_rationale: >-
+      Server operating systems.
+    prod_source: [osnix]
+
+  - name: ops_non_inf_ndl_m
+    description: >-
+      Network device logs — Arista switches, Cisco IOS, Aruba wireless, F5
+      BIG-IP. Merged because access requirements are identical across all four
+      vendors.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: ndl             # Network device logs
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: it_networking
+    owner_technical: it_networking
+    confidence: high
+    owner_rationale: >-
+      Operated and depended on by the same unit.
+    prod_source: [arista, aruba, cisco, f5]
+
+  - name: ops_non_inf_ocl_m
+    description: >-
+      Oracle Cloud Infrastructure tenancy audit and logging.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: ocl             # Oracle Cloud Infrastructure
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: business_apps
+    owner_technical: it_infrastructure
+    confidence: medium
+    owner_rationale: >-
+      Business Apps depends on the Oracle estate; Infrastructure operates the
+      tenancy.
+    prod_source: [oracle]
+
+  - name: ops_non_inf_stg_m
+    description: >-
+      Storage platform logs — Brocade SAN fabric and NetApp ONTAP.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: stg             # Storage platform logs
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: it_infrastructure
+    owner_technical: it_infrastructure
+    confidence: high
+    owner_rationale: >-
+      SAN fabric and NAS controllers.
+    prod_source: [brocade, netapp]
+
+  - name: ops_non_inf_vmw_s
+    description: >-
+      VMware ESXi host logs across 45 esxlog channels. High volume, so short
+      retention.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: vmw             # Virtualization platform logs
+    retention: _s             # Short term, 30 searchable days
+    owner_business: it_infrastructure
+    owner_technical: it_infrastructure
+    confidence: high
+    owner_rationale: >-
+      Virtualization platform.
+    prod_source: [vmware]
+
+  - name: ops_non_inf_whm_s
+    description: >-
+      Windows host monitoring — process, processor, service, and role
+      inventory. High volume and low forensic value, so short retention.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: whm             # Windows host monitoring
+    retention: _s             # Short term, 30 searchable days
+    owner_business: it_infrastructure
+    owner_technical: it_infrastructure
+    confidence: high
+    owner_rationale: >-
+      Windows server estate.
+    prod_source: [nps_server]
+
+  - name: ops_non_inf_win_m
+    description: >-
+      Windows System and Application channel events, including Snare-relayed
+      events.
+    data_class: ops          # Operational
+    compliance: non
+    domain: inf
+    content: win             # Windows event logs
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: it_infrastructure
+    owner_technical: it_infrastructure
+    confidence: high
+    owner_rationale: >-
+      Windows servers. Note the Snare feed carries some physical access
+      control events (Protege GX) that may warrant splitting to Physical
+      Security.
+    prod_source: [oswin, snare_logs]
+
+  - name: pub_non_app_wea_s
+    description: >-
+      Public weather observations. Synthetic coverage fixture — no Class 1
+      data exists in the export (ADR-008 D1).
+    data_class: pub          # Public
+    compliance: non
+    domain: app
+    content: wea             # Weather and external public feeds
+    retention: _s             # Short term, 30 searchable days
+    owner_business: energy_markets
+    owner_technical: energy_application_services
+    confidence: medium
+    owner_rationale: >-
+      Public weather feeds drive load and price forecasting.
+    prod_source: [(synthetic coverage fixture)]
+
+  - name: res_non_sec_dlp_l
+    description: >-
+      Varonis file activity and data-security posture.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: dlp             # Data loss prevention
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_cyber
+    owner_technical: sec_cyber
+    confidence: high
+    owner_rationale: >-
+      Data security platform.
+    prod_source: [varonis]
+
+  - name: res_non_sec_edr_l
+    description: >-
+      Microsoft Defender endpoint detections and M365 Defender incidents.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: edr             # Endpoint detection and response
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_cyber
+    owner_technical: it_euc
+    confidence: high
+    owner_rationale: >-
+      Cyber responds; EUC owns the endpoint estate.
+    prod_source: [azure, o365]
+
+  - name: res_non_sec_fwl_l
+    description: >-
+      Palo Alto firewall traffic, threat, GlobalProtect, HIP, and system logs.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: fwl             # Firewall traffic
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_cyber
+    owner_technical: it_networking
+    confidence: high
+    owner_rationale: >-
+      Cyber consumes; Networking operates.
+    prod_source: [palo_alto]
+
+  - name: res_non_sec_iam_aad_l
+    description: >-
+      Entra ID (Azure AD) sign-in, audit, user, and device events.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: iam             # Identity and access management
+    detail: aad
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_iam
+    owner_technical: sec_iam
+    confidence: high
+    owner_rationale: >-
+      Cloud directory and federation.
+    prod_source: [azure_ad]
+
+  - name: res_non_sec_iam_ad_m
+    description: >-
+      On-premises Active Directory object and directory changes.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: iam             # Identity and access management
+    detail: ad
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: sec_iam
+    owner_technical: sec_iam
+    confidence: high
+    owner_rationale: >-
+      On-premises directory.
+    prod_source: [msad]
+
+  - name: res_non_sec_iam_nps_l
+    description: >-
+      NPS and RADIUS authentication events from the network policy server.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: iam             # Identity and access management
+    detail: nps
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_iam
+    owner_technical: sec_iam
+    confidence: high
+    owner_rationale: >-
+      Network authentication service.
+    prod_source: [nps_server]
+
+  - name: res_non_sec_iam_oci_l
+    description: >-
+      Oracle IDCS identity and MFA events, including phone, SMS, and TOTP
+      factors.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: iam             # Identity and access management
+    detail: oci
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_iam
+    owner_technical: sec_iam
+    confidence: high
+    owner_rationale: >-
+      Oracle identity domain.
+    prod_source: [oracle]
+
+  - name: res_non_sec_iam_okt_l
+    description: >-
+      Okta system log.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: iam             # Identity and access management
+    detail: okt
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_iam
+    owner_technical: sec_iam
+    confidence: high
+    owner_rationale: >-
+      Okta identity platform.
+    prod_source: [okta]
+
+  - name: res_non_sec_lin_l
+    description: >-
+      Linux authentication and sudo activity (linux_secure). Class 5,
+      mirroring the Windows Security-channel split.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: lin             # Linux logs
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_cyber
+    owner_technical: it_infrastructure
+    confidence: high
+    owner_rationale: >-
+      Cyber consumes it; Infrastructure runs the hosts.
+    prod_source: [osnix]
+
+  - name: res_non_sec_nac_m
+    description: >-
+      Forescout CounterACT network access control decisions. Operational
+      tempo, so medium retention rather than long hold.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: nac             # Network access control
+    retention: _m             # Medium term, 365 searchable days
+    owner_business: sec_cyber
+    owner_technical: it_networking
+    confidence: high
+    owner_rationale: >-
+      Cyber sets policy; Networking operates enforcement.
+    prod_source: [forescout]
+
+  - name: res_non_sec_win_l
+    description: >-
+      Windows Security-channel event logs.
+    data_class: res          # Restricted
+    compliance: non
+    domain: sec
+    content: win             # Windows event logs
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: sec_cyber
+    owner_technical: it_infrastructure
+    confidence: high
+    owner_rationale: >-
+      Cyber consumes it; Infrastructure runs the hosts.
+    prod_source: [oswinsec]
+
+  - name: res_pci_sec_hsm_l
+    description: >-
+      Thales HSM logs. The pci compliance driver is PENDING CONFIRMATION
+      (ADR-008 D4) and this index carries the only real compliance-isolation
+      test.
+    data_class: res          # Restricted
+    compliance: pci
+    domain: sec
+    content: hsm             # Hardware security module
+    retention: _l             # Long term, 1185 searchable days
+    owner_business: compliance
+    owner_technical: sec_cyber
+    confidence: low
+    owner_rationale: >-
+      Compliance owns the PCI obligation; Cyber runs the devices. Confirm
+      alongside the pci classification, which is itself a best guess.
+    prod_source: [thales_hsm]
+
+  - name: risk
+    description: >-
+      Enterprise Security risk index (risk modifiers).
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: sec_cyber
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      Cyber consumes; Observability runs the platform.
+    prod_source: [risk]
+
+  - name: summary
+    description: >-
+      Shared Splunk and ES summary indexing target. Shared scope: granting it
+      broadly may expose another use case summarised output.
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: it_observability
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      General summary indexing, shared across use cases.
+    prod_source: [summary]
+
+  - name: threat_activity
+    description: >-
+      Enterprise Security threat intelligence matches.
+    naming_exception: vendor_mandated   # ADR-008 D3
+    owner_business: sec_cyber
+    owner_technical: it_observability
+    confidence: high
+    owner_rationale: >-
+      Cyber consumes; Observability runs the platform.
+    prod_source: [threat_activity]

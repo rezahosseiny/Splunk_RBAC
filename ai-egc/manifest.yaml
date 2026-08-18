@@ -1,0 +1,21 @@
+project:
+  name: splunk-rbac-test-harness
+  owner: Reza Hosseiny
+
+framework:
+  name: AI-EGC
+  version: 0.3.1     # exact version only — no ranges, no "latest"
+  source:
+    repository: <AI-EGC-REPOSITORY>       # TODO(Reza): pin the framework repo URL
+    ref: v0.3.1
+    commit: <AI-EGC-RELEASE-COMMIT>       # TODO(Reza): pin the release commit
+
+profile:
+  name: lite               # lite | standard | controlled
+
+domain_playbooks:
+  - name: software-delivery
+    version: 0.1.0
+
+authority:
+  decision_authority: Reza Hosseiny
