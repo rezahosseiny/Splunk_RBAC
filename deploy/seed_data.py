@@ -222,9 +222,21 @@ def main():
             state = json.load(handle)
     if state.get("fingerprint") == stamp and not args.force and not args.dry_run:
         print(f"already seeded with these inputs (fingerprint {stamp}); "
-              f"nothing to do. Use --force to re-send, or `make teardown` "
-              f"first for a clean reload.")
+              f"nothing to do.")
         return 0
+    if state and state.get("fingerprint") != stamp and not args.force \
+            and not args.dry_run:
+        # Seeding does not diff — it sends every event it resolves. On top of an
+        # existing seed that silently doubles the counts every test depends on,
+        # so changed inputs require a clean reload rather than an append.
+        print(f"inputs have changed since the last seed "
+              f"({state.get('fingerprint')} -> {stamp}).\n"
+              f"Seeding is not incremental: re-sending now would ADD to the "
+              f"{state.get('events', 0):,} events already indexed and double "
+              f"the counts.\n"
+              f"Run `make reseed` for a clean reload (teardown, deploy, seed), "
+              f"or --force to append deliberately.")
+        return 1
 
     redactor = redact.default()
     batches, gaps, stats = collect(catalog, exports, fixtures, redactor)

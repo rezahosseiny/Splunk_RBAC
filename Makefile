@@ -11,6 +11,7 @@
 #   make connect    confirm credentials and report the Splunk version
 #   make deploy     push the generated apps (method from config/settings.yaml)
 #   make seed       ingest the sample data into the governed indexes
+#   make reseed     clean reload: purge, redeploy, seed (use after changes)
 #   make teardown   remove generated apps, catalog indexes, and test users
 #   make rebuild    teardown, then the whole chain end to end
 #
@@ -41,8 +42,8 @@ ifeq ($(strip $(EXPORTS)),)
 else
 	@for f in $(EXPORTS); do \
 	    $(PY) -m tools.profile_sample_data "$$f" >/dev/null || exit 1; \
-	    $(PY) -m tools.resolve_mapping "$$f" | tail -4 || exit 1; \
 	done
+	@$(PY) -m tools.resolve_mapping $(EXPORTS) | tail -5
 endif
 
 fixtures:
@@ -71,9 +72,10 @@ deploy-rest: build
 seed:
 	$(PY) -m deploy.seed_data
 
-# Force a re-send of unchanged inputs; use after fixing a partial seed.
-reseed:
-	$(PY) -m deploy.seed_data --force
+# Clean reload after new data arrives or a decision changes: purge, redeploy,
+# then seed. Seeding is not incremental, so this is the safe way to reload.
+reseed: teardown deploy seed
+	@echo "clean reload complete"
 
 teardown:
 	bash deploy/teardown.sh --yes

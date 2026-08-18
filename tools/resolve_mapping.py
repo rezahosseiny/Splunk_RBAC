@@ -236,18 +236,35 @@ def write_remediation(remediation, quarantined, csv_path, out_path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("csv_path")
+    parser.add_argument("csv_path", nargs="+",
+                        help="one or more exports; results aggregate")
     parser.add_argument("-o", "--out", default="docs/source_remediation_map.md")
     args = parser.parse_args()
 
     mapping = load("mapping.yaml")
     taxonomy = load("taxonomy.yaml")
-    governed, gaps, remediation, quarantined = resolve(args.csv_path, mapping)
+
+    governed, gaps, remediation, quarantined = None, None, None, None
+    for path in args.csv_path:
+        g, gp, rem, q = resolve(path, mapping)
+        if governed is None:
+            governed, gaps, remediation, quarantined = g, gp, rem, q
+            continue
+        for index, bucket in g.items():                  # merge, never replace
+            target = governed[index]
+            target["events"] += bucket["events"]
+            for field in ("sourcetypes", "sources", "from_legacy"):
+                target[field].update(bucket[field])
+        gaps.update(gp)
+        for key, values in rem.items():
+            remediation[key].update(values)
+        quarantined.update(q)
     problems = validate_names(governed, mapping, taxonomy)
 
     total = sum(b["events"] for b in governed.values())
     dropped = sum(gaps.values())
-    print(f"{args.csv_path}: {total:,} events mapped into "
+    label = ", ".join(args.csv_path)
+    print(f"{label}: {total:,} events mapped into "
           f"{len(governed)} governed indexes, {dropped:,} unmapped\n")
 
     print(f"{'governed index':26s} {'events':>7s} {'st':>3s} {'src':>4s}  "
@@ -274,7 +291,7 @@ def main():
         print("Naming validation: clean.")
 
     inventory = {
-        "source_export": args.csv_path,
+        "source_exports": args.csv_path,
         "indexes": {
             index: {
                 "events": bucket["events"],
@@ -294,7 +311,7 @@ def main():
     print(f"Resolved inventory written to "
           f"{os.path.relpath(inv_path, os.path.dirname(CATALOG))}")
 
-    write_remediation(remediation, quarantined, args.csv_path, args.out)
+    write_remediation(remediation, quarantined, label, args.out)
     print(f"\nRemediation map written to {args.out} "
           f"({len(remediation)} patterns)")
     return 1 if (gaps or problems) else 0
