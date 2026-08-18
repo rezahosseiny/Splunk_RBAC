@@ -69,6 +69,10 @@ class Catalog:
         self.index_by_name = {e["name"]: e for e in self.index_list}
         self.legacy = self.mapping["legacy_indexes"]
         self.fixtures = self.mapping.get("coverage_fixtures", {})
+        # Indexes Splunk itself provides: governed for access, never defined
+        # or removed by this project.
+        self.provided = {e["name"] for e in self.index_list
+                         if e.get("provided_by")}
         self.name_exempt = {
             name for name, entry in self.legacy.items()
             if entry.get("naming_exception")

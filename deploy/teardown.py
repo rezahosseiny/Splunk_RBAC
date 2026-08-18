@@ -46,20 +46,38 @@ def main():
         return 2
     print(f"target: Splunk {info['version']} ({info['server_name']})")
 
-    # Indexes: only those the catalog defines, and never a Splunk internal one.
+    # Indexes: only those the catalog defines. Never a Splunk internal index,
+    # and never one Splunk itself provides.
+    #
+    # Deletion must be called in the owning app's namespace — Splunk rejects a
+    # cross-app delete with "sourceApp doesn't equal callerApp" — and it must
+    # happen before the app is removed, because removing the app takes the index
+    # definitions with it and leaves the bucket data orphaned on disk.
+    owners = {}
+    for row in splunk.search(
+            "| rest /services/data/indexes | table title eai:acl.app"):
+        owners[row.get("title")] = row.get("eai:acl.app")
     live = splunk.index_names()
     targets = [name for name in sorted(catalog.index_by_name)
-               if name in live and not name.startswith(PROTECTED_PREFIXES)]
+               if name in live
+               and not name.startswith(PROTECTED_PREFIXES)
+               and name not in catalog.provided
+               and owners.get(name) not in (None, "system")]
+    skipped = sorted(set(catalog.index_by_name) & live - set(targets))
     removed = 0
     for name in targets:
+        app = owners[name]
         try:
-            splunk.delete(f"/services/data/indexes/"
-                          f"{urllib.parse.quote(name)}")
+            splunk.delete(f"/servicesNS/nobody/{urllib.parse.quote(app)}"
+                          f"/data/indexes/{urllib.parse.quote(name)}")
             removed += 1
         except SplunkError as exc:
             print(f"  index {name}: {exc}")
-    print(f"indexes: removed {removed} of {len(targets)} catalog-defined "
-          f"indexes present")
+    print(f"indexes: removed {removed} of {len(targets)} removable "
+          f"catalog-defined indexes")
+    if skipped:
+        print(f"  left in place ({len(skipped)}): Splunk-provided or "
+              f"system-owned — {', '.join(skipped)}")
 
     # Users: only those the catalog declares. Never a role.
     users = getattr(catalog, "users", None)

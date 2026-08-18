@@ -96,6 +96,12 @@ def render_indexes_app(catalog, inventory, version):
     ]
     for entry in sorted(catalog.index_list, key=lambda e: e["name"]):
         name = entry["name"]
+        if name in catalog.provided:
+            conf.append(f"# {name}: provided by Splunk "
+                        f"({entry['provided_by']}) — governed for access only, "
+                        f"not defined here.")
+            conf.append("")
+            continue
         tier = catalog.retention(name)
         frozen = catalog.frozen_seconds(name)
         conf.append(f"[{name}]")

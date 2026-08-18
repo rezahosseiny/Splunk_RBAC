@@ -27,6 +27,7 @@ import glob
 import hashlib
 import json
 import os
+import re
 import sys
 
 from deploy.splunk_api import Splunk, SplunkError, load_settings
@@ -54,7 +55,7 @@ def fingerprint(paths):
 
 
 def read_export(path):
-    """Yield (legacy_index, legacy_sourcetype, legacy_source, raw) per event."""
+    """Yield (legacy_index, legacy_sourcetype, legacy_source, raw, time) per event."""
     csv.field_size_limit(sys.maxsize)
     with open(path, newline="", encoding="utf-8", errors="replace") as handle:
         reader = csv.DictReader(handle)
@@ -66,7 +67,8 @@ def read_export(path):
             index = (row.get("index") or "").strip()
             if index:
                 yield (index, (row.get("sourcetype") or "").strip(),
-                       (row.get("source") or "").strip(), row.get("_raw") or "")
+                       (row.get("source") or "").strip(),
+                       row.get("_raw") or "", (row.get("_time") or "").strip())
 
 
 def read_fixture(path, catalog):
@@ -91,11 +93,12 @@ def collect(catalog, exports, fixtures, redactor):
     # Pass 1: learn the identity values the corpus contains, so bare hostnames
     # and names in prose are caught as well as their structured forms.
     for path in exports:
-        for _ix, _st, _src, raw in read_export(path):
+        for _ix, _st, _src, raw, _t in read_export(path):
             redactor.learn(raw)
 
     for path in exports:
-        for legacy_index, legacy_st, legacy_src, raw in read_export(path):
+        for legacy_index, legacy_st, legacy_src, raw, event_time in read_export(
+                path):
             stats["read"] += 1
             resolved = catalog.resolve(legacy_index, legacy_st, legacy_src)
             if resolved is None:
@@ -103,15 +106,70 @@ def collect(catalog, exports, fixtures, redactor):
                 continue
             key = (resolved["index"], resolved["sourcetype"],
                    resolved["source"])
-            batches[key].append(redactor.redact_event(raw))
+            batches[key].append(
+                with_timestamp(flatten(redactor.redact_event(raw)),
+                               event_time))
             stats["routed"] += 1
 
     for path in fixtures:
         for index, sourcetype, source, line in read_fixture(path, catalog):
-            batches[(index, sourcetype, source)].append(line)
+            batches[(index, sourcetype, source)].append(flatten(line))
             stats["fixtures"] += 1
 
     return batches, gaps, stats
+
+
+UNDATED_RE = re.compile(r"^\s*\d")
+
+
+def with_timestamp(event, event_time):
+    """Ensure the event text starts with a timestamp Splunk can parse.
+
+    Some exported events have an empty leading timestamp field and begin
+    ", search_name=..." — the time is in the export's _time column but not in
+    _raw. Splunk cannot date such a line, so it merges it into the preceding
+    event: 20 events arrived as 1, and the counts the data-access tests depend on
+    silently stopped matching.
+
+    Prefixing the event's own _time fixes the cause rather than the symptom, and
+    is faithful — it restores the timestamp the event actually had. Events that
+    already start with one are untouched.
+    """
+    if not event_time or UNDATED_RE.match(event):
+        return event
+    return f"{event_time} {event}"
+
+
+def flatten(event):
+    """Collapse an event to a single line.
+
+    props.conf sets SHOULD_LINEMERGE=false on every governed sourcetype, so
+    Splunk indexes one event per line. Multi-line sources — Windows XML event
+    logs, ActiveDirectory records — would therefore arrive as many events each,
+    inflating counts and destroying the expected values the data-access tests
+    compare against.
+
+    Correcting that properly means a per-sourcetype LINE_BREAKER, which needs
+    real onboarding knowledge of each feed and is recorded as a production gap.
+    For a harness whose subject is RBAC rather than parsing fidelity, one event
+    in equals one event indexed is the property that matters, and flattening
+    guarantees it. Interior newlines become spaces; nothing is dropped.
+    """
+    if "\n" in event or "\r" in event:
+        return " ".join(event.split())
+    return event
+
+
+def index_counts(splunk):
+    """Event count per index, from a search rather than totalEventCount.
+
+    totalEventCount on the indexes endpoint lags behind ingestion and is not a
+    reliable basis for verification. tstats over all time is authoritative, and
+    latest=+1d catches any event whose timestamp lands slightly ahead of now.
+    """
+    rows = splunk.search("| tstats count where index=* by index",
+                         earliest="0", latest="+1d")
+    return {row["index"]: int(row["count"]) for row in rows}
 
 
 def chunk(events):
@@ -227,7 +285,7 @@ def main():
             print(f"  {name}")
         return 1
 
-    before = {ix: splunk.index_event_count(ix) for ix in expected}
+    before = index_counts(splunk)
     sent = 0
     for (index, sourcetype, source), events in sorted(batches.items()):
         for part in chunk(events):
@@ -257,7 +315,7 @@ def _report(expected, verify):
     for index in sorted(expected):
         if verify:
             splunk, before = verify
-            landed = splunk.index_event_count(index) - before.get(index, 0)
+            landed = index_counts(splunk).get(index, 0) - before.get(index, 0)
             delta = landed - expected[index]
             print(f"{index:26s} {expected[index]:9,d} {landed:8,d} "
                   f"{delta:+7d}")

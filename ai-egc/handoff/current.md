@@ -9,10 +9,16 @@
 ## Where things stand
 
 Lifecycle is **build**. **WRK-001 (Phase 1) is complete and approved.**
-**WRK-002 (Phase 2) is written and passing offline, blocked on Splunk
-credentials** — see the Progress section of WRK-002 and ADR-011. `make offline`
-runs the whole no-credentials pipeline and passes; `make connect` is the first
-step once `config/.env` exists.
+**WRK-002 (Phase 2) is complete and verified against the live instance.**
+**WRK-003 (Phase 3 — RBAC scenario design) is the next phase, and it is a
+decision gate.**
+
+Phase 2 result: 35 governed indexes live on Splunk 10.4.1, 31,608 events seeded
+with **counts matching exactly on every index**, no real identifier searchable
+anywhere, seeding idempotent, and a clean-instance rebuild demonstrated. Five
+real defects were found and fixed in the process — all listed in WRK-002, and
+all of the kind that pass a smoke test while corrupting every behavioural
+assertion downstream. Credentials are in config/.env (gitignored).
 
 Reza gave blanket approval of INT-001 and ADR-001 through ADR-010 in session on
 2026-08-18, and directed that the project move to Phase 2. All ten decision

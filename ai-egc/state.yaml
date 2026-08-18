@@ -1,13 +1,15 @@
 project: splunk-rbac-test-harness
 lifecycle_state: build
-active_work: WRK-002
+active_work: WRK-003
 next_action: >-
-  Phase 2 (WRK-002) is built and passing offline — `make offline` runs
-  validate, fixtures, profile, build, and redaction verification end to end.
-  BLOCKED on Reza for one input: Splunk admin credentials in config/.env
-  (copy config/.env.example). Then `make connect && make deploy && make seed`
-  completes the phase. Optional second input: write access to
-  /opt/splunk/etc/apps if the filesystem deploy path is preferred over the
-  default REST path — see ADR-011.
+  Phase 3 (WRK-003) — RBAC scenario design. This is a DECISION GATE: decide the
+  Privilege Bundle and Business Role catalog so that every behaviour the
+  strategy asserts is observable, per the coverage matrix in ADR-006. Deliver
+  bundles.yaml, roles.yaml, users.yaml, coverage_matrix.yaml, and the
+  independently authored expectations.yaml. The parallel catalog in
+  raw_files/catalog has a usable role population to start from, but its
+  expectations file is generated and must not be copied (see the review section
+  in handoff/current.md). Phase 2 is complete: 35 indexes live, 31,608 events
+  seeded with counts matching exactly.
 last_updated: 2026-08-18
 updated_by: Claude (AI participant), session with Reza Hosseiny

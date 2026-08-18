@@ -63,10 +63,10 @@ connect:
 deploy: build
 	@method=$$($(PY) -c "import yaml;print(yaml.safe_load(open('config/settings.yaml'))['deployment']['method'])"); \
 	if [ "$$method" = "rsync" ]; then bash deploy/deploy.sh; \
-	else $(PY) -m deploy.deploy_rest; fi
+	else $(PY) -m deploy.deploy_rest --restart; fi
 
 deploy-rest: build
-	$(PY) -m deploy.deploy_rest
+	$(PY) -m deploy.deploy_rest --restart
 
 seed:
 	$(PY) -m deploy.seed_data

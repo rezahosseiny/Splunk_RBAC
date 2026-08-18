@@ -516,6 +516,9 @@ indexes:
     prod_source: [risk]
 
   - name: summary
+    # Ships with Splunk and is owned by the system context: the catalog governs
+    # who may search it, but must not create, alter, or delete it.
+    provided_by: splunk
     description: >-
       Shared Splunk and ES summary indexing target. Shared scope: granting it
       broadly may expose another use case summarised output.

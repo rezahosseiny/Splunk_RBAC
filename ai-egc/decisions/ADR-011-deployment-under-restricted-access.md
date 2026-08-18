@@ -75,9 +75,15 @@ consequential act than supplying credentials the project needs anyway.
 - **Phase 2 is blocked on two inputs from Reza**, both of which he alone can
   provide: Splunk admin credentials in `config/.env`, and — only if the rsync
   path is preferred — write access to `/opt/splunk/etc/apps`.
-- Index creation may not take effect until splunkd reloads its index
-  configuration; `deploy_rest.py` reports which catalog indexes are not yet
-  present rather than claiming success, and a restart may be required.
+- **Confirmed in practice: a restart is required, not merely possible.**
+  splunkd refuses to hot-reload after an index is added ("reload is not safe
+  since a path has been changed") and the new index accepts nothing until it
+  restarts. `deploy_rest.py --restart` therefore restarts through the management
+  API, and `make deploy` always passes it. The restart takes roughly 45 seconds
+  on this VM, so deployment is not a fast inner loop.
+- Stanzas written through the generic conf endpoint are created **disabled** by
+  default; deployment forces them enabled. Without that, every index exists and
+  silently drops everything sent to it.
 - The API path exercises less of the production deployment mechanism than a
   filesystem sync does. Neither exercises the search head cluster deployer or
   cluster manager bundle validation, which ADR-004 already records as untested

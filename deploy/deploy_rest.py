@@ -21,6 +21,7 @@ import argparse
 import glob
 import os
 import sys
+import time
 import urllib.parse
 
 from deploy.splunk_api import Splunk, SplunkError, load_settings
@@ -29,8 +30,12 @@ from generators import loader
 ROOT = loader.ROOT
 BUILD_DIR = os.path.join(ROOT, "build", "apps")
 
-# Attributes the indexes endpoint rejects or manages itself.
-SKIP_KEYS = {"disabled"}
+# The generic configs/conf-<file> endpoint creates a new stanza DISABLED unless
+# told otherwise — an artifact of that API, not a catalog decision. Left
+# unhandled, every index is created but silently accepts nothing: Splunk logs
+# INDEXER_MISSING_INDEX and drops the events. So every stanza this writes is
+# explicitly enabled.
+FORCE_VALUES = {"disabled": "0"}
 
 
 def parse_conf(path):
@@ -82,7 +87,8 @@ def upsert(splunk, app, conf_name, stanza, values, existing, dry_run):
     """Create or update one stanza in one conf file inside the app namespace."""
     base = (f"/servicesNS/nobody/{urllib.parse.quote(app)}"
             f"/configs/conf-{urllib.parse.quote(conf_name)}")
-    payload = {k: v for k, v in values.items() if k not in SKIP_KEYS}
+    payload = dict(values)
+    payload.update(FORCE_VALUES)
     if dry_run:
         print(f"  would {'update' if stanza in existing else 'create'} "
               f"[{stanza}] in {conf_name}.conf ({len(payload)} attributes)")
@@ -95,13 +101,72 @@ def upsert(splunk, app, conf_name, stanza, values, existing, dry_run):
 
 
 def existing_stanzas(splunk, app, conf_name):
+    """Stanzas this app itself owns in one conf file.
+
+    The app namespace inherits every stanza visible to it — Splunk ships
+    hundreds of props.conf sourcetypes — so an unfiltered listing looks like
+    hundreds of orphans. Filtering on the owning app is what makes the orphan
+    report mean "the catalog used to generate this and no longer does", which is
+    the only reading under which --prune is safe.
+    """
     path = (f"/servicesNS/nobody/{urllib.parse.quote(app)}"
             f"/configs/conf-{urllib.parse.quote(conf_name)}")
     try:
         result = splunk.get(path, params={"count": 0})
     except SplunkError:
         return set()
-    return {entry["name"] for entry in result.get("entry", [])}
+    owned = set()
+    for entry in result.get("entry", []):
+        acl = entry.get("acl") or {}
+        if acl.get("app") == app:
+            owned.add(entry["name"])
+    return owned
+
+
+def restart_and_wait(splunk, timeout=300):
+    """Restart splunkd through the admin API and wait for it to answer again.
+
+    Uses the management endpoint rather than systemctl, so no elevation is
+    needed — the same reason the API deployment path exists (ADR-011).
+    """
+    try:
+        splunk.post("/services/server/control/restart")
+    except SplunkError as exc:
+        # A restart drops the connection mid-response; that is success, not
+        # failure, so only a refusal before the restart began is an error.
+        if "401" in str(exc) or "403" in str(exc):
+            print(f"  restart refused: {exc}")
+            return False
+    # Two phases, and the first is the one that is easy to get wrong: the old
+    # process keeps answering for several seconds after the restart is accepted,
+    # so polling for "up" straight away succeeds against the process that is
+    # about to die and reports a restart that has not happened yet. Wait for the
+    # port to go down first, then for it to come back.
+    waited = 0
+    went_down = False
+    while waited < 90:
+        time.sleep(3)
+        waited += 3
+        try:
+            splunk.server_info()
+        except SplunkError:
+            went_down = True
+            print(f"  splunkd stopped after {waited}s")
+            break
+    if not went_down:
+        print("  splunkd never stopped — the restart was not honoured")
+        return False
+
+    while waited < timeout:
+        time.sleep(5)
+        waited += 5
+        try:
+            splunk.server_info()
+        except SplunkError:
+            continue
+        print(f"  splunkd back after {waited}s")
+        return True
+    return False
 
 
 def main():
@@ -111,6 +176,14 @@ def main():
     parser.add_argument("--prune", action="store_true",
                         help="remove deployed stanzas the catalog no longer "
                              "generates")
+    parser.add_argument("--restart", action="store_true",
+                        help="restart splunkd afterwards and wait for it to "
+                             "come back. Index creation is not hot-reloadable: "
+                             "splunkd logs \"reload is not safe since a path "
+                             "has been changed\" and the new index accepts "
+                             "nothing until a restart.")
+    parser.add_argument("--no-wait", action="store_true",
+                        help="with --restart, return without waiting")
     args = parser.parse_args()
 
     if not os.path.isdir(BUILD_DIR):
@@ -166,6 +239,14 @@ def main():
     if args.dry_run:
         print(f"\ndry run: {changed} stanzas would be written")
         return 0
+
+    if args.restart:
+        print("\nrestarting splunkd — index configuration is not "
+              "hot-reloadable")
+        if not restart_and_wait(splunk):
+            print("splunkd did not come back within the timeout; check "
+                  "`systemctl status splunk`")
+            return 1
 
     catalog = loader.Catalog()
     live = splunk.index_names()
