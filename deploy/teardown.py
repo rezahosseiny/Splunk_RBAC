@@ -17,11 +17,42 @@ import argparse
 import sys
 import urllib.parse
 
-from deploy.splunk_api import Splunk, SplunkError, load_settings
+from deploy.splunk_api import (Splunk, SplunkError, load_env,
+                               load_settings)
 from generators import loader
 
 PROTECTED_PREFIXES = ("_",)          # _internal, _audit, _introspection, ...
 PROTECTED_ROLES = {"admin", "power", "user", "can_delete"}
+
+
+def purge_data(splunk, names):
+    """Mark the events in an undeletable index unsearchable.
+
+    `| delete` needs the can_delete capability, which no role holds by default
+    and which the strategy classifies as destructive. It is granted for the
+    duration of the purge and revoked immediately, so the elevated capability
+    never outlives the operation that needs it.
+    """
+    username = load_env().get("SPLUNK_USERNAME", "admin")
+    path = f"/services/authentication/users/{urllib.parse.quote(username)}"
+    original = list(splunk.get(path)["entry"][0]["content"].get("roles") or [])
+    if "can_delete" in original:
+        granted = False
+    else:
+        splunk.post(path, data=[("roles", r)
+                                for r in original + ["can_delete"]])
+        granted = True
+    try:
+        for name in names:
+            rows = splunk.search(f"search index={name} | delete",
+                                 earliest="0", latest="+1d")
+            deleted = next((r.get("deleted") for r in rows
+                            if r.get("index") == name), "0")
+            print(f"    purged {deleted} events from {name}")
+    finally:
+        if granted:
+            splunk.post(path, data=[("roles", r) for r in original])
+            print(f"    can_delete revoked from {username}")
 
 
 def main():
@@ -76,8 +107,12 @@ def main():
     print(f"indexes: removed {removed} of {len(targets)} removable "
           f"catalog-defined indexes")
     if skipped:
-        print(f"  left in place ({len(skipped)}): Splunk-provided or "
+        print(f"  not removable ({len(skipped)}): Splunk-provided or "
               f"system-owned — {', '.join(skipped)}")
+        # Their definitions must survive, but their DATA must not: teardown
+        # cannot delete the index, so without this every reload adds another
+        # copy of the seeded events and the counts drift upward silently.
+        purge_data(splunk, skipped)
 
     # Users: only those the catalog declares. Never a role.
     users = getattr(catalog, "users", None)
