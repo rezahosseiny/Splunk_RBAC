@@ -15,7 +15,6 @@ prints or logs a credential.
 
 import os
 import sys
-import urllib.parse
 
 import requests
 import urllib3
@@ -140,11 +139,6 @@ class Splunk:
         return {e["name"] for e in
                 self.get("/services/data/indexes",
                          params={"count": 0, "datatype": "all"})["entry"]}
-
-    def index_event_count(self, name):
-        entries = self.get(f"/services/data/indexes/"
-                           f"{urllib.parse.quote(name)}")["entry"]
-        return int(entries[0]["content"].get("totalEventCount", 0))
 
     def stream_events(self, index, sourcetype, source, host, body):
         """Send newline-delimited events to one index/sourcetype/source.

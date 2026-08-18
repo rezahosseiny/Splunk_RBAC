@@ -1,4 +1,13 @@
-# CLAUDE.md
+# Assistant Adapter Signpost
+
+| Field | Value |
+|---|---|
+| **Document** | Assistant Adapter Signpost |
+| **Location in Repo** | `CLAUDE.md` |
+| **Author** | Reza Hosseiny |
+| **Status** | Approved |
+| **Last Updated** | 2026-08-18 |
+| **Covers** | Where an automated assistant must start reading. Non-authoritative pointer to the governance framework. |
 
 **Framework:** AI-EGC Framework<br>
 **Author:** Reza Hosseiny<br>

@@ -1,4 +1,13 @@
-# Source, sourcetype, and index remediation map
+# Source, Sourcetype and Index Remediation Map
+
+| Field | Value |
+|---|---|
+| **Document** | Source, Sourcetype and Index Remediation Map |
+| **Location in Repo** | `docs/source_remediation_map.md` |
+| **Author** | Reza Hosseiny |
+| **Status** | Generated |
+| **Last Updated** | 2026-08-18 |
+| **Covers** | Every legacy value in the production sample, and the governed value that replaces it. Work list for the remediation programme. |
 
 Legacy values as they exist in production, mapped to the governed
 values the strategy requires. This is the work list for bringing the
@@ -14,21 +23,21 @@ Rows: 698.
 | legacy index | legacy sourcetype | legacy source | governed index | governed sourcetype | governed source |
 |---|---|---|---|---|---|
 | `arista` | `arista_switch_log` | `udp:5012` | `ops_non_inf_ndl_m` | `arista:switch:syslog` | `net:arista:switch:syslog` |
-| `aruba` | `aruba` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:system` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:amon_sender_proc` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:amon_sender_proc` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:authmgr` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:authmgr` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:ble_relay` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:ble_relay` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:dropbear` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:dropbear` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:fpapps` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:fpapps` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:isakmpd` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:isakmpd` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:kernel` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:kernel` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:mini_httpd` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:mini_httpd` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:nanny` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:nanny` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:ofald` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:ofald` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:sapd` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:sapd` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:snmp` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:snmp` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:stm` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:stm` | `net:aruba:wireless:syslog` |
-| `aruba` | `aruba:wl` | `udp:5010` | `ops_non_inf_wls_m` | `aruba:wireless:wl` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:system` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:amon_sender_proc` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:amon_sender_proc` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:authmgr` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:authmgr` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:ble_relay` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:ble_relay` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:dropbear` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:dropbear` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:fpapps` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:fpapps` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:isakmpd` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:isakmpd` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:kernel` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:kernel` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:mini_httpd` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:mini_httpd` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:nanny` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:nanny` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:ofald` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:ofald` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:sapd` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:sapd` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:snmp` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:snmp` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:stm` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:stm` | `net:aruba:wireless:syslog` |
+| `aruba` | `aruba:wl` | `udp:5010` | `ops_non_inf_ndl_m` | `aruba:wireless:wl` | `net:aruba:wireless:syslog` |
 | `azure` | `ms:defender:eventhub` | `eventhub://{host}/defenderhub;` | `res_non_sec_edr_l` | `microsoft:defender:eventhub` | `api:azure:eventhub:defender` |
 | `azure_ad` | `azure:aad:audit` | `ms_aad_audit:tenant_id:{guid}` | `res_non_sec_iam_aad_l` | `azure:aad:audit` | `api:azure:aad:audit` |
 | `azure_ad` | `azure:aad:device` | `ms_aad_device:tenant_id:{guid}` | `res_non_sec_iam_aad_l` | `azure:aad:device` | `api:azure:aad:device` |

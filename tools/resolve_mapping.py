@@ -29,7 +29,7 @@ import sys
 
 import yaml
 
-from tools import redact
+from tools import docmeta, redact
 
 CATALOG = os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), "catalog")
@@ -179,9 +179,12 @@ def validate_names(governed, mapping, taxonomy):
 
 def write_remediation(remediation, quarantined, csv_path, out_path):
     """The durable, accumulating legacy-to-governed remediation record."""
-    lines = [
-        "# Source, sourcetype, and index remediation map",
-        "",
+    lines = docmeta.doc_header(
+        "Source, Sourcetype and Index Remediation Map",
+        "docs/source_remediation_map.md",
+        "Every legacy value in the production sample, and the governed value "
+        "that replaces it. Work list for the remediation programme.")
+    lines += [
         "Legacy values as they exist in production, mapped to the governed",
         "values the strategy requires. This is the work list for bringing the",
         "real estate into conformance — each row is an input-layer change.",

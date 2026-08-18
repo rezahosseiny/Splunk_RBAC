@@ -8,7 +8,7 @@ effective-permission helpers exist once.
     from generators import loader
     cat = loader.Catalog()
     cat.errors          # [] when the catalog is internally consistent
-    cat.index_spec("ops_non_inf_lin_m")
+    cat.retention("ops_non_inf_lin_m")
     cat.resolve("aruba", "aruba:stm", "udp:5010")
 """
 
@@ -139,15 +139,11 @@ class Catalog:
                  for rule in entry["rules"]}
         return sorted(names | set(self.fixtures))
 
-    # ---- effective permissions (used from Phase 3 onward) ---------------
-
-    def bundle(self, name):
-        for group in ("data_bundles", "search_bundles", "feature_bundles",
-                      "workspace_bundles"):
-                for entry in (getattr(self, "bundles", {}) or {}).get(group, []):
-                    if entry["name"] == name:
-                        return entry
-        return None
+    # ---- effective permissions ------------------------------------------
+    #
+    # Phase 3 adds the bundle and role helpers here, once bundles.yaml and
+    # roles.yaml exist. Writing them before the files they read would be
+    # guesswork.
 
     def effective_allowed_indexes(self, patterns):
         """Expand index patterns against the catalog's index set."""

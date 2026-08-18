@@ -244,3 +244,34 @@ need, never emitted from the same catalog the generator reads.
 - Their wildcard data bundle `pr_data_ops_inf` (`ops_non_inf_*`) sweeps in the
   quarantine index, granting NOC operators data that failed onboarding and may
   contain misrouted sensitive content. Worth avoiding in WRK-003.
+
+## Documentation set — 2026-08-18
+
+`docs/DESIGN.md` and `docs/USER_GUIDE.md` written, and `README.md` rewritten as
+the index. All three use ASD-STE100 Simplified Technical English: short
+sentences, one instruction per sentence, active voice.
+
+Every document in the repository now carries the six required fields —
+Document, Location in Repo, Author (Reza Hosseiny), Status, Last Updated,
+Covers. `tools/docmeta.py` emits the header for the three GENERATED documents
+(`docs/source_remediation_map.md`, `reports/mapping_worksheet.md`,
+`reports/seed_verification.md`), so a regeneration cannot drop it and the
+attribution cannot drift. Last Updated is taken from the newest catalog or
+sample input rather than the clock, so a document changes only when its input
+changes.
+
+Six code defects fixed in the same pass: a docstring naming a method that does
+not exist; a comment naming a `--report` flag that does not exist; a
+speculative, mis-indented bundle helper written before the file it reads
+(removed — Phase 3 adds it properly); an unused `index_event_count` wrapper
+around the lagging `totalEventCount` metric (removed, so it cannot be reused by
+mistake); and a `make help` target with hard-coded line numbers that had already
+drifted past the header block (now derived from the block itself).
+
+**One item for Reza to decide.** `ai-egc/state.yaml` records
+`updated_by: Claude (AI participant)`, and the authority boundary in
+START_HERE.md distinguishes AI participants from the decision authority. That is
+the AI-EGC accountability model, not authorship of a design document — the
+design documents name Reza Hosseiny as author and mention no tool. The
+governance records were left as the framework defines them. Change them if the
+framework's own terminology is unwanted in this repository.

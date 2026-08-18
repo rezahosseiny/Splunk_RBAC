@@ -25,8 +25,8 @@ BUILD_DIR = os.path.join(ROOT, "build", "apps")
 INVENTORY = os.path.join(ROOT, "reports", "resolved_inventory.json")
 
 # Sourcetype timestamp hints. Only what is known from the sample export; a
-# sourcetype absent here gets the safe defaults and is listed by --report so the
-# gap is visible rather than assumed away.
+# sourcetype absent here gets the safe defaults, and every run lists the ones
+# that do, so the gap stays visible.
 TIME_HINTS = {
     "linux:system:messages": {"TZ": "UTC"},
     "linux:system:syslog": {"TZ": "UTC"},

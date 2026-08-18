@@ -23,8 +23,9 @@ EXPORTS := $(wildcard sample_data/*.csv)
 .PHONY: help all offline validate profile fixtures build redaction \
         connect deploy deploy-rest seed reseed teardown rebuild clean
 
+# Prints the header block above, so help cannot drift from it.
 help:
-	@sed -n '2,20p' Makefile | sed 's/^# \{0,1\}//'
+	@awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' Makefile
 
 # Everything that needs no Splunk and no credentials.
 offline: validate fixtures profile build redaction

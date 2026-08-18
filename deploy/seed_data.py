@@ -32,7 +32,7 @@ import sys
 
 from deploy.splunk_api import Splunk, SplunkError, load_settings
 from generators import loader
-from tools import redact
+from tools import docmeta, redact
 
 ROOT = loader.ROOT
 STATE_PATH = os.path.join(ROOT, "reports", "seed_state.json")
@@ -316,8 +316,12 @@ def main():
 
 def _report(expected, verify):
     """Per-index expected counts, and landed counts when Splunk is reachable."""
-    lines = ["# Seed verification", "",
-             "Expected counts come from the mapping applied to the inputs.",
+    lines = docmeta.doc_header(
+        "Seed Verification",
+        "reports/seed_verification.md",
+        "Expected and actual event counts for each governed index after the "
+        "sample data is loaded into Splunk.")
+    lines += ["Expected counts come from the mapping applied to the inputs.",
              "Landed counts are read back from the instance after ingestion;",
              "indexing is asynchronous, so a shortfall immediately after",
              "seeding may simply mean the queue has not drained.", "",
