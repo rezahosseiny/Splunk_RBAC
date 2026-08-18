@@ -1,0 +1,344 @@
+# Privilege Bundles (pr_*).
+#
+# A bundle grants ONE kind of access. The single-concern rule from the strategy:
+#
+#   pr_data_*       indexes_allowed / indexes_default / srch_filter ONLY
+#   pr_search_*     search-execution capabilities + the runtime envelope
+#   pr_feat_*       all other capabilities
+#   pr_workspace_*  nothing; the stanza is empty and app metadata grants access
+#
+# A bundle must not hold an attribute belonging to another category. That rule is
+# what makes any data bundle combinable with any search, feature, and workspace
+# bundle.
+#
+# Every capability name here is VERIFIED against Splunk 10.4.1
+# (reports/capability_baseline.json). Three names the strategy gives do not
+# exist on that release — see the note in catalog/taxonomy.yaml.
+#
+# Sensitive capabilities appear only in a pr_feat_admin_* bundle, and that bundle
+# carries a governance block.
+#
+# Status: proposed. Authority: Reza Hosseiny.
+
+version: 1
+status: proposed
+
+# ---------------------------------------------------------------------------
+# Data bundles — 12 (strategy target 8-12)
+# ---------------------------------------------------------------------------
+# Index sets are listed EXPLICITLY, not by wildcard. A wildcard such as
+# ops_non_inf_* reads as "the operational estate" but also silently includes
+# ops_non_inf_bad_s, the quarantine index. Quarantine holds data that failed
+# onboarding and may contain misrouted sensitive content, so it must be granted
+# deliberately and never as a side effect of a pattern.
+data_bundles:
+
+  - name: pr_data_ops_infra
+    description: Operational IT infrastructure telemetry. Excludes quarantine.
+    indexes_allowed:
+      - ops_non_inf_ndl_m
+      - ops_non_inf_stg_m
+      - ops_non_inf_dns_m
+      - ops_non_inf_lin_m
+      - ops_non_inf_win_m
+      - ops_non_inf_whm_s
+      - ops_non_inf_vmw_s
+      - ops_non_inf_ocl_m
+    indexes_default:
+      - ops_non_inf_lin_m
+
+  - name: pr_data_ops_quarantine
+    description: >-
+      The quarantine index alone. Separate from pr_data_ops_infra because data
+      that failed onboarding can hold anything, including misrouted sensitive
+      content, so access to it is a deliberate grant.
+    indexes_allowed:
+      - ops_non_inf_bad_s
+    indexes_default:
+      - ops_non_inf_bad_s
+
+  - name: pr_data_sec_network
+    description: Network security telemetry — firewall and network access control.
+    indexes_allowed:
+      - res_non_sec_fwl_l
+      - res_non_sec_nac_m
+    indexes_default:
+      - res_non_sec_fwl_l
+
+  - name: pr_data_sec_endpoint
+    description: Endpoint and host security telemetry.
+    indexes_allowed:
+      - res_non_sec_edr_l
+      - res_non_sec_dlp_l
+      - res_non_sec_win_l
+      - res_non_sec_lin_l
+    indexes_default:
+      - res_non_sec_edr_l
+
+  - name: pr_data_sec_host_triage
+    description: >-
+      OS security logs together with the operational Windows logs that give them
+      context. Deliberately OVERLAPS pr_data_sec_endpoint and pr_data_ops_infra:
+      an analyst triaging one host needs both, and the overlap is what makes
+      Splunk's union behaviour observable.
+    indexes_allowed:
+      - res_non_sec_win_l
+      - res_non_sec_lin_l
+      - ops_non_inf_win_m
+      - ops_non_inf_whm_s
+    indexes_default:
+      - res_non_sec_win_l
+
+  - name: pr_data_identity_cloud
+    description: Cloud identity providers — Entra ID, Okta, Oracle IDCS.
+    indexes_allowed:
+      - res_non_sec_iam_aad_l
+      - res_non_sec_iam_okt_l
+      - res_non_sec_iam_oci_l
+    indexes_default:
+      - res_non_sec_iam_aad_l
+
+  - name: pr_data_identity_onprem
+    description: >-
+      On-premises identity — Active Directory and NPS/RADIUS. Disjoint from
+      pr_data_identity_cloud, so a role holding both proves that the union is
+      strictly larger than either bundle.
+    indexes_allowed:
+      - res_non_sec_iam_ad_m
+      - res_non_sec_iam_nps_l
+    indexes_default:
+      - res_non_sec_iam_ad_m
+
+  - name: pr_data_es_content
+    description: >-
+      Enterprise Security content indexes. These keep vendor-mandated names
+      because ES resolves them internally.
+    indexes_allowed:
+      - notable
+      - risk
+      - threat_activity
+      - gia_summary
+      - endpoint_summary
+      - cim_modactions
+      - ers
+      - dlx_kpi
+      - summary
+    indexes_default:
+      - notable
+
+  - name: pr_data_pci_scope
+    description: >-
+      PCI-scoped data. The only regulated index in the catalog, so this bundle
+      carries the compliance-isolation boundary.
+    indexes_allowed:
+      - res_pci_sec_hsm_l
+    indexes_default:
+      - res_pci_sec_hsm_l
+
+  - name: pr_data_ot_regulated
+    description: NERC CIP SCADA telemetry. Class 4 Control data under a regulator.
+    indexes_allowed:
+      - ctl_cip_ics_scd_s
+    indexes_default:
+      - ctl_cip_ics_scd_s
+
+  - name: pr_data_ot_process
+    description: >-
+      Plant historian telemetry, Class 4 but not regulated. Separate from
+      pr_data_ot_regulated so compliance isolation can be tested inside one
+      data class, and not only across classes.
+    indexes_allowed:
+      - ctl_non_ics_hst_m
+    indexes_default:
+      - ctl_non_ics_hst_m
+
+  - name: pr_data_ent_apps
+    description: >-
+      Enterprise application data and public reference feeds. Weather is here
+      because it serves load and price forecasting, which is an application
+      concern.
+    indexes_allowed:
+      - ent_non_app_col_o365_m
+      - ent_non_app_itm_m
+      - pub_non_app_wea_s
+    indexes_default:
+      - ent_non_app_itm_m
+
+# ---------------------------------------------------------------------------
+# Search bundles — 4 (strategy target 3-4)
+# ---------------------------------------------------------------------------
+# Each holds the search-execution capabilities together with the runtime limits
+# that govern them, because the two only make sense read together.
+search_bundles:
+
+  - name: pr_search_basic
+    description: Standard analyst envelope. No real time and no scheduling.
+    capabilities: [search]
+    envelope:
+      srchTimeWin: 2592000        # 30 days
+      srchJobsQuota: 5
+      rtSrchJobsQuota: 0
+      srchDiskQuota: 500
+      srchMaxTime: 3600
+
+  - name: pr_search_advanced
+    description: >-
+      Power-user envelope with scheduling and real time. schedule_rtsearch sits
+      here rather than in a feature bundle: it governs how a search runs, which
+      is this category's concern.
+    capabilities: [search, rtsearch, schedule_search, schedule_rtsearch]
+    envelope:
+      srchTimeWin: 0              # no limit
+      srchJobsQuota: 10
+      rtSrchJobsQuota: 4
+      srchDiskQuota: 2000
+      srchMaxTime: 0              # no limit
+
+  - name: pr_search_constrained
+    description: >-
+      The default for a service account. Narrow window, no scheduling, no real
+      time.
+    capabilities: [search]
+    envelope:
+      srchTimeWin: 86400          # 24 hours
+      srchJobsQuota: 2
+      rtSrchJobsQuota: 0
+      srchDiskQuota: 100
+      srchMaxTime: 600
+
+  - name: pr_search_burst
+    description: >-
+      Extra concurrency for a short investigation, with a SMALLER disk quota
+      than pr_search_basic. The asymmetry is deliberate: a role holding both
+      bundles must end with 20 jobs and 500 MB, so the test proves Splunk takes
+      the maximum of each attribute separately, and not simply the values of the
+      more generous bundle.
+    capabilities: [search]
+    envelope:
+      srchTimeWin: 604800         # 7 days
+      srchJobsQuota: 20
+      rtSrchJobsQuota: 0
+      srchDiskQuota: 200
+      srchMaxTime: 1800
+
+# ---------------------------------------------------------------------------
+# Feature bundles — 9 (strategy target 6-10)
+# ---------------------------------------------------------------------------
+feature_bundles:
+
+  - name: pr_feat_baseline
+    description: >-
+      What every authenticated Tri-State user holds. This is the maintained
+      equivalent of the built-in user role, which the strategy forbids importing.
+    capabilities:
+      - change_own_password
+      - get_metadata
+      - get_typeahead
+
+  - name: pr_feat_dashboards
+    description: Build and share dashboards and reports.
+    capabilities:
+      - edit_own_objects
+      - embed_report
+
+  - name: pr_feat_alerting
+    description: Create and tune scheduled alerts.
+    capabilities:
+      - edit_search_schedule_window
+      - edit_search_schedule_priority
+
+  - name: pr_feat_acceleration
+    description: Accelerate reports and data models.
+    capabilities:
+      - accelerate_search
+
+  - name: pr_feat_export
+    description: >-
+      Write search results to a file. Separate from pr_feat_dashboards because
+      this is a data-egress path: it deserves its own grant and its own audit
+      line, even though it is not in the sensitive tier.
+    capabilities:
+      - output_file
+
+  - name: pr_feat_rbac_visibility
+    description: >-
+      Read-only sight of the role and user catalog, which an access review
+      needs. Read-only, so not sensitive.
+    capabilities:
+      - list_all_roles
+      - list_all_users
+
+  - name: pr_feat_investigate
+    description: >-
+      Upload a file for ad-hoc analysis during an investigation. Holds a
+      sensitive capability, so it is named pr_feat_admin_* below instead — see
+      pr_feat_admin_data. This bundle keeps only the non-sensitive part.
+    capabilities:
+      - input_file
+      - rest_properties_get
+
+  # ---- Sensitive tier ----------------------------------------------------
+  # A sensitive capability may exist ONLY in a pr_feat_admin_* bundle, and that
+  # bundle must carry a governance block. Two admin bundles rather than one:
+  # platform administration and data destruction are different duties, and
+  # separating them means neither role alone can both change the platform and
+  # destroy the evidence.
+
+  - name: pr_feat_admin_platform
+    description: Platform administration. SENSITIVE.
+    sensitive: true
+    capabilities:
+      - edit_user
+      - edit_roles
+      - edit_roles_grantable
+      - edit_search_server
+      - list_storage_passwords
+      - admin_all_objects
+    governance:
+      time_bounded: true
+      max_standing_duration_days: 90
+      dual_approval: true
+      session_logging: _audit
+      recertification: quarterly
+
+  - name: pr_feat_admin_data
+    description: >-
+      Index modification and data destruction. SENSITIVE. Held separately from
+      pr_feat_admin_platform so that no single role can both reconfigure the
+      platform and delete the record of it.
+    sensitive: true
+    capabilities:
+      - indexes_edit
+      - delete_by_keyword
+      - run_collect
+      - edit_upload_and_index
+    governance:
+      time_bounded: true
+      max_standing_duration_days: 30
+      dual_approval: true
+      session_logging: _audit
+      recertification: quarterly
+
+# ---------------------------------------------------------------------------
+# Workspace bundles — 4 (strategy target 3-6)
+# ---------------------------------------------------------------------------
+# Each stanza is EMPTY in authorize.conf. It grants no index, no capability, and
+# no quota. It is a named handle that each app's metadata/local.meta references.
+# A workspace is therefore a two-file construct, and both halves must exist.
+workspace_bundles:
+
+  - name: pr_workspace_soc
+    description: Security operations workspace.
+    apps: [tristate_soc_workspace]
+
+  - name: pr_workspace_itops
+    description: IT and network operations workspace.
+    apps: [tristate_itops_workspace]
+
+  - name: pr_workspace_ot
+    description: Operations Technology workspace.
+    apps: [tristate_ot_workspace]
+
+  - name: pr_workspace_audit
+    description: Compliance and audit reviewer workspace.
+    apps: [tristate_audit_workspace]

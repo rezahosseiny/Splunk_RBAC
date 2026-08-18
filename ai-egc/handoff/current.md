@@ -10,8 +10,20 @@
 
 Lifecycle is **build**. **WRK-001 (Phase 1) is complete and approved.**
 **WRK-002 (Phase 2) is complete and verified against the live instance.**
-**WRK-003 (Phase 3 — RBAC scenario design) is the next phase, and it is a
-decision gate.**
+**WRK-003 (Phase 3) has a complete, verified catalog proposal awaiting review.**
+
+Phase 3 result: 29 bundles (12 data, 4 search, 9 feature, 4 workspace — every
+category inside the strategy's sizing targets), 15 roles (9 population,
+6 coverage), 15 test users, 29 covered behaviours, and expectations hand written
+for all 15 roles. `make validate` clean, including the expectations cross-check.
+Design reasons in ADR-013.
+
+Two findings from the phase. First, three capability names the strategy gives do
+not exist on Splunk 10.4.1 (`edit_indexes`, `edit_indexes_allinternal`,
+`clean_indexes`) — a bundle built from the strategy text verbatim would fail to
+deploy. Corrected and recorded in ADR-012, a finding for Strategy 2.1. Second,
+`clean_indexes` has no equivalent on 10.4.1, so the capability-gated control the
+strategy intended for index data removal is not available on that release.
 
 Phase 2 result: 35 governed indexes live on Splunk 10.4.1, 31,608 events seeded
 with **counts matching exactly on every index**, no real identifier searchable

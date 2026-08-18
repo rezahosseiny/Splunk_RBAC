@@ -1,0 +1,102 @@
+# Test users — one for each Business Role, and no more.
+#
+# These stand in for the identity provider on the test instance. Production uses
+# SAML, with one group GRP_splunk_<rl_role> mapped to each Business Role
+# (ADR-003). The generator renders that mapping as a template, and a static test
+# checks its shape. Live SAML behaviour is not tested here.
+#
+# One user for each role is what makes the one-role-per-user rule testable: a
+# behavioural test reads each user's role list and asserts that it holds exactly
+# one entry.
+#
+# Passwords are generated at deploy time into config/test_user_credentials.json,
+# which is gitignored. No password appears in this file or anywhere in version
+# control.
+#
+# Status: proposed. Authority: Reza Hosseiny.
+
+version: 1
+status: proposed
+
+# Prefix for every test account, so a test user is recognisable at a glance and
+# a teardown can never mistake a real account for one of these.
+username_prefix: t_
+
+users:
+
+  # ---- Population roles -------------------------------------------------
+  - username: t_soc_t1
+    role: rl_soc_t1
+    realname: Test - SOC first line
+    email: t_soc_t1@example.invalid
+
+  - username: t_soc_t2
+    role: rl_soc_t2
+    realname: Test - SOC second line and detection engineering
+    email: t_soc_t2@example.invalid
+
+  - username: t_it_engineer
+    role: rl_it_engineer
+    realname: Test - IT infrastructure engineering
+    email: t_it_engineer@example.invalid
+
+  - username: t_noc_operator
+    role: rl_noc_operator
+    realname: Test - NOC operator
+    email: t_noc_operator@example.invalid
+
+  - username: t_ot_engineer
+    role: rl_ot_engineer
+    realname: Test - OT engineering
+    email: t_ot_engineer@example.invalid
+
+  - username: t_compliance_auditor
+    role: rl_compliance_auditor
+    realname: Test - compliance and audit review
+    email: t_compliance_auditor@example.invalid
+
+  - username: t_platform_admin
+    role: rl_platform_admin
+    realname: Test - platform administration
+    email: t_platform_admin@example.invalid
+
+  - username: t_data_custodian
+    role: rl_data_custodian
+    realname: Test - data custodian
+    email: t_data_custodian@example.invalid
+
+  - username: t_svc_siem_ingest
+    role: rl_svc_siem_ingest
+    realname: Test - SIEM ingest service account
+    email: t_svc_siem_ingest@example.invalid
+
+  # ---- Coverage roles ---------------------------------------------------
+  - username: t_cov_base
+    role: rl_cov_base
+    realname: Test - coverage control
+    email: t_cov_base@example.invalid
+
+  - username: t_cov_data
+    role: rl_cov_data
+    realname: Test - coverage, data bundle differential
+    email: t_cov_data@example.invalid
+
+  - username: t_cov_search
+    role: rl_cov_search
+    realname: Test - coverage, search bundle differential and quota maximum
+    email: t_cov_search@example.invalid
+
+  - username: t_cov_feat
+    role: rl_cov_feat
+    realname: Test - coverage, feature bundle differential
+    email: t_cov_feat@example.invalid
+
+  - username: t_cov_workspace
+    role: rl_cov_workspace
+    realname: Test - coverage, workspace bundle differential
+    email: t_cov_workspace@example.invalid
+
+  - username: t_cov_overlap
+    role: rl_cov_overlap
+    realname: Test - coverage, overlapping index sets
+    email: t_cov_overlap@example.invalid

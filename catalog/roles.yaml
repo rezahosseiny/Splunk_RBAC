@@ -1,0 +1,263 @@
+# Business Roles (rl_*).
+#
+# A Business Role holds NO permissions of its own. It is only a composition of
+# Privilege Bundles, rendered as importRoles in authorize.conf. Each user holds
+# exactly one Business Role.
+#
+# The catalog has two kinds of role:
+#
+#   purpose: population   A role a real user population would hold.
+#   purpose: coverage     A role that exists to make one model behaviour
+#                         observable. Marked, and excluded from any
+#                         production-intent export.
+#
+# The coverage roles share one control, rl_cov_base. Each other coverage role
+# differs from that control by EXACTLY ONE bundle. Without such a pair, a
+# generator that composes bundles incorrectly cannot be seen: every role would
+# differ in several ways at once, and a failure could not be attributed to a
+# category.
+#
+# Status: proposed. Authority: Reza Hosseiny.
+
+version: 1
+status: proposed
+
+roles:
+
+  # ---- Population roles -------------------------------------------------
+
+  - name: rl_soc_t1
+    purpose: population
+    description: >-
+      Security operations, first line. Triages alerts across security telemetry
+      with infrastructure context. Denied identity data and PCI scope, which
+      belong to the second line and to compliance.
+    business_unit: sec_cyber
+    bundles:
+      - pr_data_sec_network
+      - pr_data_sec_endpoint
+      - pr_data_es_content
+      - pr_data_ops_infra
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_workspace_soc
+
+  - name: rl_soc_t2
+    purpose: population
+    description: >-
+      Security operations, second line, and detection engineering. Adds identity
+      data, a wider runtime envelope, and content authoring. Holds both identity
+      bundles, which are disjoint, so the effective index set is strictly larger
+      than either.
+    business_unit: sec_cyber
+    bundles:
+      - pr_data_sec_network
+      - pr_data_sec_endpoint
+      - pr_data_identity_cloud
+      - pr_data_identity_onprem
+      - pr_data_es_content
+      - pr_data_ops_infra
+      - pr_search_advanced
+      - pr_feat_baseline
+      - pr_feat_dashboards
+      - pr_feat_alerting
+      - pr_feat_acceleration
+      - pr_workspace_soc
+
+  - name: rl_it_engineer
+    purpose: population
+    description: >-
+      IT infrastructure engineering. Troubleshoots the estate and builds
+      dashboards. Denied every Class 5 index, which is the sensitivity wall
+      between operational and restricted data.
+    business_unit: it_infrastructure
+    bundles:
+      - pr_data_ops_infra
+      - pr_data_ent_apps
+      - pr_search_advanced
+      - pr_feat_baseline
+      - pr_feat_dashboards
+      - pr_workspace_itops
+
+  - name: rl_noc_operator
+    purpose: population
+    description: >-
+      Network operations centre. Situational awareness only. The narrowest
+      population role, and the reference point for the sensitivity-wall tests.
+    business_unit: it_observability
+    bundles:
+      - pr_data_ops_infra
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_workspace_itops
+
+  - name: rl_ot_engineer
+    purpose: population
+    description: >-
+      Operations Technology engineering. Holds both Class 4 index sets and the
+      operational estate. Denied every Class 5 index: an OT engineer must not
+      reach security or identity data. This role carries the OT isolation test.
+    business_unit: operations_technology
+    bundles:
+      - pr_data_ot_regulated
+      - pr_data_ot_process
+      - pr_data_ops_infra
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_feat_dashboards
+      - pr_workspace_ot
+
+  - name: rl_compliance_auditor
+    purpose: population
+    description: >-
+      Compliance and audit review. Holds PCI scope and the identity trails an
+      access review needs, plus read-only sight of the role catalog. Denied the
+      operational estate, so a reviewer sees evidence and not the whole platform.
+    business_unit: compliance
+    bundles:
+      - pr_data_pci_scope
+      - pr_data_identity_cloud
+      - pr_data_identity_onprem
+      - pr_data_es_content
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_feat_rbac_visibility
+      - pr_feat_export
+      - pr_workspace_audit
+
+  - name: rl_platform_admin
+    purpose: population
+    sensitive: true
+    description: >-
+      Platform administration. A SENSITIVE role chain: it imports
+      pr_feat_admin_platform. Holds the quarantine index, because triage of
+      failed onboarding is a platform duty. Deliberately does NOT hold
+      pr_feat_admin_data, so a platform administrator cannot destroy data.
+    business_unit: it_observability
+    bundles:
+      - pr_data_ops_infra
+      - pr_data_ops_quarantine
+      - pr_search_advanced
+      - pr_feat_baseline
+      - pr_feat_admin_platform
+      - pr_workspace_itops
+
+  - name: rl_data_custodian
+    purpose: population
+    sensitive: true
+    description: >-
+      Index lifecycle and data removal. A SENSITIVE role chain: it imports
+      pr_feat_admin_data. Separated from rl_platform_admin so that no single role
+      can both reconfigure the platform and delete the evidence of it. This role
+      and rl_platform_admin are the only entries in the destructive-capability
+      allow-list.
+    business_unit: it_observability
+    bundles:
+      - pr_data_ops_infra
+      - pr_data_ops_quarantine
+      - pr_search_advanced
+      - pr_feat_baseline
+      - pr_feat_admin_data
+      - pr_workspace_itops
+
+  - name: rl_svc_siem_ingest
+    purpose: population
+    service_account: true
+    description: >-
+      Service account for a downstream SIEM integration. Uses the constrained
+      envelope, which the strategy makes the default for a service account. No
+      workspace bundle, because a service account has no user interface.
+    business_unit: sec_cyber
+    bundles:
+      - pr_data_sec_network
+      - pr_data_sec_endpoint
+      - pr_search_constrained
+      - pr_feat_baseline
+
+  # ---- Coverage roles ---------------------------------------------------
+  # rl_cov_base is the control. Each role below differs from it by exactly one
+  # bundle, named in `differs_from_base_by`.
+
+  - name: rl_cov_base
+    purpose: coverage
+    description: >-
+      The control for the differential pairs. One bundle from each of the four
+      categories, and nothing else.
+    bundles:
+      - pr_data_ops_infra
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_workspace_itops
+
+  - name: rl_cov_data
+    purpose: coverage
+    differs_from_base_by: pr_data_identity_cloud
+    description: >-
+      Proves that a data bundle changes index access and nothing else. Compared
+      with rl_cov_base, the capability set, the quotas, and the visible apps must
+      all be identical.
+    bundles:
+      - pr_data_ops_infra
+      - pr_data_identity_cloud
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_workspace_itops
+
+  - name: rl_cov_search
+    purpose: coverage
+    differs_from_base_by: pr_search_burst
+    description: >-
+      Proves two things at once. First, a search bundle changes the runtime
+      envelope and nothing else. Second, quotas resolve as the MAXIMUM of each
+      attribute taken separately: pr_search_basic gives 5 jobs and 500 MB,
+      pr_search_burst gives 20 jobs and 200 MB, and the effective values must be
+      20 jobs and 500 MB. Neither bundle supplies both.
+    bundles:
+      - pr_data_ops_infra
+      - pr_search_basic
+      - pr_search_burst
+      - pr_feat_baseline
+      - pr_workspace_itops
+
+  - name: rl_cov_feat
+    purpose: coverage
+    differs_from_base_by: pr_feat_export
+    description: >-
+      Proves that a feature bundle changes the capability set and nothing else.
+      Index access, quotas, and visible apps must match rl_cov_base exactly.
+    bundles:
+      - pr_data_ops_infra
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_feat_export
+      - pr_workspace_itops
+
+  - name: rl_cov_workspace
+    purpose: coverage
+    differs_from_base_by: pr_workspace_soc
+    description: >-
+      Proves that a workspace bundle changes app visibility and nothing else. It
+      must grant no index, no capability, and no quota, which is what makes the
+      empty stanza correct rather than merely harmless.
+    bundles:
+      - pr_data_ops_infra
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_workspace_itops
+      - pr_workspace_soc
+
+  - name: rl_cov_overlap
+    purpose: coverage
+    description: >-
+      Holds three data bundles whose index sets overlap. pr_data_sec_endpoint and
+      pr_data_sec_host_triage share two indexes, and pr_data_sec_host_triage
+      shares two more with pr_data_ops_infra. The effective set must be the union
+      with no duplicate and no error, which proves that Splunk unions index
+      access rather than letting the last bundle win.
+    bundles:
+      - pr_data_ops_infra
+      - pr_data_sec_endpoint
+      - pr_data_sec_host_triage
+      - pr_search_basic
+      - pr_feat_baseline
+      - pr_workspace_itops

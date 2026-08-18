@@ -6,9 +6,11 @@
 #   make fixtures   generate the synthetic coverage-fixture events
 #   make build      render build/apps from the catalog
 #   make redaction  verify no production identifier reaches a generated file
+#   make coverage   render the RBAC coverage matrix
 #
 # Against the instance (needs config/.env):
 #   make connect    confirm credentials and report the Splunk version
+#   make capability-baseline  capture and diff the Splunk capability catalog
 #   make deploy     push the generated apps (method from config/settings.yaml)
 #   make seed       ingest the sample data into the governed indexes
 #   make reseed     clean reload: purge, redeploy, seed (use after changes)
@@ -21,14 +23,15 @@ PY := python3
 EXPORTS := $(wildcard sample_data/*.csv)
 
 .PHONY: help all offline validate profile fixtures build redaction \
-        connect deploy deploy-rest seed reseed teardown rebuild clean
+        coverage capability-baseline connect deploy deploy-rest seed \
+        reseed teardown rebuild clean
 
 # Prints the header block above, so help cannot drift from it.
 help:
 	@awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' Makefile
 
 # Everything that needs no Splunk and no credentials.
-offline: validate fixtures profile build redaction
+offline: validate fixtures profile build redaction coverage
 	@echo "offline pipeline complete"
 
 all: offline deploy seed
@@ -52,6 +55,12 @@ fixtures:
 
 build:
 	$(PY) -m generators.build
+
+coverage:
+	$(PY) -m tools.coverage_report
+
+capability-baseline:
+	$(PY) -m tools.capability_inventory --check-catalog
 
 redaction:
 	$(PY) -m tools.verify_redaction $(foreach f,$(EXPORTS),--csv $(f))

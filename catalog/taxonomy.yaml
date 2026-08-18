@@ -89,13 +89,38 @@ retention:
       archive. Needs a decision; see ADR-008 Consequences.
 
 # Splunk's search-execution capabilities live only in pr_search_* bundles.
+#
+# The strategy names the first three. schedule_rtsearch is added here as a
+# conscious decision, not an oversight: it governs whether a real-time search may
+# be scheduled, which is how a search runs and therefore this category's concern.
+# To place it in a pr_feat_* bundle would separate it from the rtsearch
+# capability and the real-time quota that constrain it, and the three only make
+# sense read together.
+#
+# Recorded so the addition is reviewable. Remove it and the validator will reject
+# pr_search_advanced, which is the behaviour that surfaced the question.
 search_execution_capabilities:
   - search
   - rtsearch
   - schedule_search
+  - schedule_rtsearch     # addition; see the note above
 
-# Sensitive tier. The strategy lists these "at minimum"; entries marked
-# addition: true are proposed extensions for review.
+# Sensitive tier.
+#
+# Every name below is VERIFIED to exist on Splunk 10.4.1 — see
+# reports/capability_baseline.json, produced by tools/capability_inventory.py.
+# This matters: three names the strategy gives do not exist on 10.4.1, so a
+# bundle built from the strategy text verbatim would fail to deploy.
+#
+#   edit_indexes             -> does not exist; the real name is indexes_edit
+#   edit_indexes_allinternal -> does not exist; indexes_edit covers it
+#   clean_indexes            -> does not exist on 10.4.1 and has no equivalent
+#
+# This is the capability drift the strategy's own upgrade triage process exists
+# to catch. It is a finding for Strategy 2.1, recorded in ADR-012.
+#
+# `addition: true` marks a capability this project adds to the strategy's
+# minimum list, for review.
 sensitive_capabilities:
   edit_user:                {reason: user administration}
   edit_roles_grantable:     {reason: role administration}
@@ -105,21 +130,36 @@ sensitive_capabilities:
   edit_indexer_cluster:     {reason: platform configuration}
   delete_by_keyword:        {reason: data destruction}
   run_collect:              {reason: arbitrary index writes}
-  edit_indexes:             {reason: index modification}
-  edit_indexes_allinternal: {reason: index modification}
-  clean_indexes:            {reason: index modification}
+  indexes_edit:             {reason: index modification (strategy says edit_indexes)}
   edit_roles:               {reason: role administration, addition: true}
   admin_all_objects:        {reason: bypasses object ACLs, addition: true}
   edit_authentication_extensions:
                             {reason: authentication chain, addition: true}
+  edit_storage_passwords:   {reason: credential modification, addition: true}
+  edit_user_seed:           {reason: seeds the admin credential, addition: true}
+  edit_upload_and_index:    {reason: writes arbitrary data to an index, addition: true}
+  run_mcollect:             {reason: arbitrary metric index writes, addition: true}
 
-# Destructive capabilities requiring an explicit allow-list, per the
-# strategy's "destructive capability check" detection.
+# Capabilities the strategy names that Splunk 10.4.1 does not have. Kept so the
+# absence is a recorded fact and not a silent omission.
+sensitive_capabilities_absent_on_target:
+  edit_indexes:             {replaced_by: indexes_edit}
+  edit_indexes_allinternal: {replaced_by: indexes_edit}
+  clean_indexes:            {replaced_by: null, note: no equivalent on 10.4.1}
+
+# Destructive capabilities requiring an explicit allow-list, per the strategy's
+# "destructive capability check" detection. Only roles named in the allow-list
+# may hold one; the detection reports any other holder.
 destructive_capabilities:
   - delete_by_keyword
-  - clean_indexes
-  - edit_indexes
-  - edit_indexes_allinternal
+  - indexes_edit
+  - run_collect
+  - run_mcollect
+  - edit_upload_and_index
+
+destructive_capability_allowlist:
+  - rl_data_custodian
+  - rl_platform_admin
 
 # Built-in roles: never modified, never imported.
 builtin_roles: [admin, power, user, can_delete]

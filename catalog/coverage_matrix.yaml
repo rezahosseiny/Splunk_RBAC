@@ -1,0 +1,334 @@
+# Coverage matrix.
+#
+# Every behaviour the strategy asserts about the RBAC model, and what makes each
+# one observable. A static test fails the build if any row has no test, so
+# coverage cannot fall away quietly as the catalog changes.
+#
+# Read `observable_because` as the answer to one question: if this behaviour were
+# broken, what would a person see? A row that cannot answer that question is not
+# covered, whatever tests point at it.
+#
+# Status: proposed. Authority: Reza Hosseiny.
+
+version: 1
+status: proposed
+
+behaviours:
+
+  # ---- Composition semantics --------------------------------------------
+
+  - id: COMP-01
+    behaviour: A data bundle changes index access and nothing else.
+    strategy_basis: Conceptual model — a bundle in one category holds no attribute of another.
+    roles: [rl_cov_base, rl_cov_data]
+    observable_because: >-
+      rl_cov_data differs from rl_cov_base by exactly one data bundle. Its index
+      set must grow by that bundle's indexes. Its capability set, its quotas, and
+      its visible apps must stay identical.
+    tests: [test_data_access, test_capabilities, test_quotas, test_app_visibility]
+
+  - id: COMP-02
+    behaviour: A search bundle changes the runtime envelope and nothing else.
+    strategy_basis: Conceptual model — pr_search_* holds the envelope it governs.
+    roles: [rl_cov_base, rl_cov_search]
+    observable_because: >-
+      rl_cov_search differs from rl_cov_base by exactly one search bundle. Its
+      quotas must change. Its index set and visible apps must not.
+    tests: [test_quotas, test_data_access, test_app_visibility]
+
+  - id: COMP-03
+    behaviour: A feature bundle changes the capability set and nothing else.
+    strategy_basis: Capabilities — all non-search capabilities live in pr_feat_*.
+    roles: [rl_cov_base, rl_cov_feat]
+    observable_because: >-
+      rl_cov_feat differs from rl_cov_base by exactly one feature bundle. Its
+      capability set must gain output_file and nothing more. Its index set and
+      quotas must stay identical.
+    tests: [test_capabilities, test_data_access, test_quotas]
+
+  - id: COMP-04
+    behaviour: A workspace bundle changes app visibility and nothing else.
+    strategy_basis: Workspace bundles — the stanza is intentionally empty.
+    roles: [rl_cov_base, rl_cov_workspace]
+    observable_because: >-
+      rl_cov_workspace differs from rl_cov_base by exactly one workspace bundle.
+      The SOC workspace app must become visible. The index set, the capability
+      set, and the quotas must all stay identical, which is what proves the empty
+      stanza is correct and not merely harmless.
+    tests: [test_app_visibility, test_data_access, test_capabilities, test_quotas]
+
+  - id: COMP-05
+    behaviour: Index access is the union of the data bundles, when the sets are disjoint.
+    strategy_basis: Mapping to Splunk primitives — Splunk evaluates the union.
+    roles: [rl_soc_t2]
+    observable_because: >-
+      rl_soc_t2 holds pr_data_identity_cloud and pr_data_identity_onprem, which
+      share no index. It must reach all five identity indexes, which is more than
+      either bundle grants alone.
+    tests: [test_data_access]
+
+  - id: COMP-06
+    behaviour: Index access is the union when the sets OVERLAP, with no duplicate and no error.
+    strategy_basis: Mapping to Splunk primitives — the union is why bundles compose without loss.
+    roles: [rl_cov_overlap]
+    observable_because: >-
+      rl_cov_overlap holds three data bundles that share indexes. The effective
+      set must be the union. If Splunk let the last bundle win, the shared
+      indexes would still be reachable but the others would not, and the count of
+      reachable indexes would be short.
+    tests: [test_data_access]
+
+  - id: COMP-07
+    behaviour: Capabilities are the union across several feature bundles.
+    strategy_basis: Capabilities — granted only through bundles.
+    roles: [rl_soc_t2]
+    observable_because: >-
+      rl_soc_t2 holds four feature bundles. Its capability set must equal the
+      union of all four, with the search-execution capabilities from its search
+      bundle and nothing else.
+    tests: [test_capabilities]
+
+  - id: COMP-08
+    behaviour: A quota is the MAXIMUM of that attribute across the chain, taken attribute by attribute.
+    strategy_basis: Mapping to Splunk primitives — quotas evaluate as the maximum.
+    roles: [rl_cov_search]
+    observable_because: >-
+      pr_search_basic gives 5 jobs and 500 MB. pr_search_burst gives 20 jobs and
+      200 MB. The effective values must be 20 jobs and 500 MB. Neither bundle
+      supplies both, so a wrong rule cannot give the right answer by accident: if
+      Splunk took the last bundle the disk quota would be 200, and if it took the
+      least the job quota would be 5.
+    tests: [test_quotas]
+
+  - id: COMP-09
+    behaviour: A bundle is reusable across several Business Roles.
+    strategy_basis: Bundle catalog sizing — the reuse test.
+    roles: [rl_soc_t1, rl_soc_t2, rl_noc_operator, rl_it_engineer]
+    observable_because: >-
+      pr_feat_baseline appears in every role and pr_data_ops_infra in most. A
+      change to one of those bundles must change every importing role together.
+    tests: [test_roles_composition, test_capabilities]
+
+  # ---- Boundary enforcement --------------------------------------------
+
+  - id: BOUND-01
+    behaviour: A sensitivity wall separates operational data from restricted data.
+    strategy_basis: Segregation rules — classes must not mix.
+    roles: [rl_noc_operator, rl_it_engineer]
+    observable_because: >-
+      Both roles reach Class 3 operational indexes. Neither may reach any Class 5
+      index. A search naming one returns zero events.
+    tests: [test_data_access]
+
+  - id: BOUND-02
+    behaviour: OT Class 4 data is isolated from security Class 5 data, in both directions.
+    strategy_basis: Data Protection — control data is kept separate from IT and business data.
+    roles: [rl_ot_engineer, rl_soc_t2]
+    observable_because: >-
+      rl_ot_engineer reaches both Class 4 indexes and no Class 5 index.
+      rl_soc_t2 reaches Class 5 indexes and neither Class 4 index. The isolation
+      therefore holds in both directions, and not only in the direction that
+      happens to be tested.
+    tests: [test_data_access]
+
+  - id: BOUND-03
+    behaviour: A regulated index is isolated from a role that is otherwise eligible for its domain.
+    strategy_basis: Segregation rules — compliance isolation.
+    roles: [rl_soc_t1, rl_compliance_auditor]
+    observable_because: >-
+      rl_soc_t1 reaches several res_non_sec_* security indexes but must not reach
+      res_pci_sec_hsm_l. Only rl_compliance_auditor reaches it. The compliance
+      driver, and not the class or the domain, is what separates them.
+    tests: [test_data_access]
+
+  - id: BOUND-04
+    behaviour: Compliance isolation holds inside a single data class.
+    strategy_basis: Compliance isolation — regulated data lives in a dedicated index.
+    roles: [rl_ot_engineer]
+    observable_because: >-
+      Both Class 4 indexes are reachable by rl_ot_engineer, one under NERC CIP
+      and one not. A future role granted pr_data_ot_process alone must reach the
+      unregulated index and not the regulated one. Class alone cannot explain the
+      difference.
+    tests: [test_data_access, test_expectations_consistency]
+
+  - id: BOUND-05
+    behaviour: An unauthorised index returns nothing rather than an error.
+    strategy_basis: Access control — least privilege, enforced silently by Splunk.
+    roles: [rl_noc_operator, rl_svc_siem_ingest]
+    observable_because: >-
+      A search naming a denied index returns zero events and no error. A search
+      over index=* returns events only from permitted indexes. Both must hold: a
+      model that denied the named search but leaked through the wildcard would
+      pass a weaker test.
+    tests: [test_data_access]
+
+  - id: BOUND-06
+    behaviour: The quarantine index is reachable only by a deliberate grant.
+    strategy_basis: The Quarantine Protocol — data that failed onboarding.
+    roles: [rl_platform_admin, rl_data_custodian, rl_noc_operator]
+    observable_because: >-
+      pr_data_ops_infra lists its indexes and excludes the quarantine index, so
+      rl_noc_operator cannot reach it although it reaches the rest of the
+      operational estate. Only the two roles holding pr_data_ops_quarantine can.
+      A wildcard grant would have made this unobservable.
+    tests: [test_data_access, test_bundle_concerns]
+
+  - id: BOUND-07
+    behaviour: A sensitive capability exists only in a pr_feat_admin_* chain.
+    strategy_basis: Sensitive capability tier — isolated in dedicated bundles.
+    roles: [rl_platform_admin, rl_data_custodian, rl_soc_t2, rl_it_engineer]
+    observable_because: >-
+      Every capability in the sensitive tier must be absent from the effective
+      set of every role except the two admin roles. The test asserts full set
+      equality, so an extra capability fails as loudly as a missing one.
+    tests: [test_sensitive_caps, test_capabilities]
+
+  - id: BOUND-08
+    behaviour: Platform administration and data destruction are separate duties.
+    strategy_basis: Principles — separation of duties across administrative functions.
+    roles: [rl_platform_admin, rl_data_custodian]
+    observable_because: >-
+      rl_platform_admin holds edit_user and edit_roles but not delete_by_keyword.
+      rl_data_custodian holds delete_by_keyword but not edit_user. No role holds
+      both, so no single account can reconfigure the platform and then destroy
+      the record of it.
+    tests: [test_sensitive_caps, test_capabilities]
+
+  - id: BOUND-09
+    behaviour: A destructive capability is held only by a role in the allow-list.
+    strategy_basis: Compliance monitoring — the destructive capability check.
+    roles: [rl_data_custodian, rl_platform_admin]
+    observable_because: >-
+      taxonomy.yaml names the allow-list. Any other role holding a destructive
+      capability is a finding, and the al_rbac_destructive_capability_check
+      detection reports it.
+    tests: [test_sensitive_caps, test_compliance_detections]
+
+  - id: BOUND-10
+    behaviour: No built-in role is modified or imported.
+    strategy_basis: Built-in roles — never modified, never used as components.
+    roles: [all]
+    observable_because: >-
+      No bundle or role imports admin, power, user, or can_delete. The definition
+      of each built-in role is unchanged from a snapshot taken before deployment.
+      pr_feat_baseline is the maintained substitute for the user role.
+    tests: [test_roles_composition, test_builtin_roles_unmodified]
+
+  - id: BOUND-11
+    behaviour: Each user holds exactly one Business Role.
+    strategy_basis: Composition convention — one Business Role per user.
+    roles: [all]
+    observable_because: >-
+      Each user's role list read from Splunk holds exactly one entry, and that
+      entry matches the catalog. A second role would be visible immediately, and
+      the al_rbac_multi_role_assignment detection reports it.
+    tests: [test_roles, test_roles_composition, test_compliance_detections]
+
+  - id: BOUND-12
+    behaviour: A workspace bundle grants no index, no capability, and no quota.
+    strategy_basis: Workspace bundles — the stanza is intentionally empty.
+    roles: [rl_cov_base, rl_cov_workspace]
+    observable_because: >-
+      The rendered stanza holds only a comment. rl_cov_workspace and rl_cov_base
+      must return identical index sets, capability sets, and quotas, and differ
+      only in visible apps.
+    tests: [test_bundle_concerns, test_generated_confs, test_app_visibility]
+
+  - id: BOUND-13
+    behaviour: A service account uses the constrained envelope.
+    strategy_basis: Service accounts — pr_search_constrained is the default.
+    roles: [rl_svc_siem_ingest]
+    observable_because: >-
+      The role name matches rl_svc_*, it holds pr_search_constrained, and its
+      quotas equal that bundle's values. It holds no workspace bundle, so it has
+      no user interface.
+    tests: [test_roles_composition, test_quotas, test_app_visibility]
+
+  - id: BOUND-14
+    behaviour: A Business Role carries no permission of its own.
+    strategy_basis: Conceptual model — a Business Role is purely a composition.
+    roles: [all]
+    observable_because: >-
+      Each rl_* stanza in the generated authorize.conf holds importRoles and
+      nothing else. A stanza with any other attribute fails the check.
+    tests: [test_generated_confs, test_roles_composition]
+
+  # ---- Identity provider mapping ---------------------------------------
+
+  - id: IDP-01
+    behaviour: Each Business Role maps to exactly one identity provider group.
+    strategy_basis: IdP group to role mapping — one role on the right of each line.
+    roles: [all]
+    observable_because: >-
+      The generated authentication.conf template holds one line for each
+      Business Role, in the form GRP_splunk_<role> = <role>, with exactly one
+      role after the equals sign. No pr_* bundle appears on any line.
+    tests: [test_generated_confs]
+    limitation: >-
+      Text only. Live SAML behaviour needs an identity provider, which this
+      environment does not have (ADR-003).
+
+  # ---- Detection efficacy ----------------------------------------------
+
+  - id: DET-01
+    behaviour: Each of the seven standing detections runs clean on a healthy environment.
+    strategy_basis: Compliance monitoring — the standing detections.
+    roles: [all]
+    observable_because: >-
+      Each al_rbac_* saved search exists and returns no result while the
+      environment obeys the model.
+    tests: [test_compliance_detections]
+
+  - id: DET-02
+    behaviour: Each detection FIRES when its violation is injected, and the environment ends clean.
+    strategy_basis: Compliance monitoring — a detection that cannot fire proves nothing.
+    roles: [all]
+    observable_because: >-
+      For each detection the test injects the matching violation, asserts the
+      search returns the injected case, then reverts. A detection that never
+      fires is indistinguishable from a healthy environment, so this is the row
+      that gives DET-01 its meaning.
+    tests: [test_compliance_detections]
+    detections:
+      - al_rbac_multi_role_assignment
+      - al_rbac_direct_bundle_assignment
+      - al_rbac_sensitive_capability_sprawl
+      - al_rbac_destructive_capability_check
+      - al_rbac_configuration_drift
+      - al_rbac_sensitive_role_chain_membership
+      - al_rbac_capability_catalog_change
+
+  # ---- Catalog integrity ------------------------------------------------
+
+  - id: CAT-01
+    behaviour: The expectations agree with the composition computed from the catalog.
+    strategy_basis: ADR-001 — the expectations are written independently.
+    roles: [all]
+    observable_because: >-
+      A static test compares each role's expectations against the sets computed
+      from the bundles. A disagreement is a decision to make, and never a silent
+      difference. This row is the reason the expectations are hand written: if a
+      tool produced them, the comparison would always agree and would prove
+      nothing.
+    tests: [test_expectations_consistency]
+
+  - id: CAT-02
+    behaviour: Every capability named in the catalog exists on the target release.
+    strategy_basis: Capability changes across Splunk releases — the upgrade triage process.
+    roles: [all]
+    observable_because: >-
+      Each capability in every bundle appears in the capability inventory taken
+      from the instance. Three names the strategy gives do not exist on Splunk
+      10.4.1, so this check is not hypothetical.
+    tests: [test_capability_names_exist]
+
+  - id: CAT-03
+    behaviour: Bundle counts stay inside the strategy's sizing targets.
+    strategy_basis: Bundle catalog sizing — the target counts per category.
+    roles: [all]
+    observable_because: >-
+      Counting each category gives 12 data, 4 search, 9 feature, and 4 workspace
+      bundles, against targets of 8-12, 3-4, 6-10, and 3-6. The test warns rather
+      than fails, because the strategy permits growth with justification.
+    tests: [test_sizing]
