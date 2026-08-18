@@ -2,7 +2,7 @@
 id: ADR-012
 type: decision
 title: Capability names in the strategy do not all exist on Splunk 10.4.1
-status: proposed
+status: accepted
 created: 2026-08-18
 owner: Reza Hosseiny
 supersedes: null
@@ -90,4 +90,4 @@ reviewable.
 
 ## Approval
 
-Pending — Reza Hosseiny
+Approved by Reza Hosseiny, 2026-08-18. ADR-013 records the five review decisions taken the same day.

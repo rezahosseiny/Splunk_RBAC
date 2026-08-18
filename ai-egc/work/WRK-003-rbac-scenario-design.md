@@ -2,7 +2,7 @@
 id: WRK-003
 type: work
 title: Phase 3 — decide RBAC scenarios covering every aspect of the model
-status: in-progress
+status: completed
 created: 2026-08-18
 owner: Reza Hosseiny
 ---
@@ -108,7 +108,8 @@ in. See ADR-012.
 4. Roles bundles-only, no built-in imports, one role per user. — met, enforced.
 5. Expectations complete and authored without deriving from the bundles. — met for all 15 roles.
 6. `make validate` passes including the cross-check. — met.
-7. Reza has reviewed the catalog. — **outstanding.**
+7. Reza has reviewed the catalog. — **met**, approved 2026-08-18 with
+   five decisions recorded in ADR-013.
 
 ## Evidence
 

@@ -14,6 +14,11 @@ deployment:
   app_dir: /opt/splunk/etc/apps
   apps:
     - tristate_indexes
+    - tristate_rbac
+    - tristate_soc_workspace
+    - tristate_itops_workspace
+    - tristate_ot_workspace
+    - tristate_audit_workspace
   # Filesystem sync needs write access to app_dir, which is owned by the splunk
   # user. Where that is unavailable, deploy/deploy_rest.py pushes the same
   # generated stanzas through the management API instead, letting splunkd do the

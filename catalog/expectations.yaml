@@ -147,6 +147,8 @@ expectations:
       - edit_search_schedule_window
       - edit_search_schedule_priority
       - accelerate_search
+      - input_file
+      - rest_properties_get
     quotas:
       srchTimeWin: 0
       srchJobsQuota: 10

@@ -12,6 +12,7 @@
 #   make connect    confirm credentials and report the Splunk version
 #   make capability-baseline  capture and diff the Splunk capability catalog
 #   make deploy     push the generated apps (method from config/settings.yaml)
+#   make users      create the test users, one per Business Role
 #   make seed       ingest the sample data into the governed indexes
 #   make reseed     clean reload: purge, redeploy, seed (use after changes)
 #   make teardown   remove generated apps, catalog indexes, and test users
@@ -24,7 +25,7 @@ EXPORTS := $(wildcard sample_data/*.csv)
 
 .PHONY: help all offline validate profile fixtures build redaction \
         coverage capability-baseline connect deploy deploy-rest seed \
-        reseed teardown rebuild clean
+        users verify-users reseed teardown rebuild clean
 
 # Prints the header block above, so help cannot drift from it.
 help:
@@ -34,7 +35,7 @@ help:
 offline: validate fixtures profile build redaction coverage
 	@echo "offline pipeline complete"
 
-all: offline deploy seed
+all: offline deploy users seed
 	@echo "full pipeline complete"
 
 validate:
@@ -79,12 +80,18 @@ deploy: build
 deploy-rest: build
 	$(PY) -m deploy.deploy_rest --restart
 
+users:
+	$(PY) -m deploy.create_users
+
+verify-users:
+	$(PY) -m deploy.create_users --verify
+
 seed:
 	$(PY) -m deploy.seed_data
 
 # Clean reload after new data arrives or a decision changes: purge, redeploy,
 # then seed. Seeding is not incremental, so this is the safe way to reload.
-reseed: teardown deploy seed
+reseed: teardown deploy users seed
 	@echo "clean reload complete"
 
 teardown:

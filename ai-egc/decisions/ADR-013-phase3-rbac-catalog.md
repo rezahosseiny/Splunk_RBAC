@@ -2,7 +2,7 @@
 id: ADR-013
 type: decision
 title: Phase 3 — the bundle, role, and expectations catalog
-status: proposed
+status: accepted
 created: 2026-08-18
 owner: Reza Hosseiny
 supersedes: null
@@ -178,4 +178,4 @@ Reza settled five open items. Each is now reflected in the catalog.
 
 ## Approval
 
-Pending — Reza Hosseiny
+Approved by Reza Hosseiny, 2026-08-18. ADR-013 records the five review decisions taken the same day.

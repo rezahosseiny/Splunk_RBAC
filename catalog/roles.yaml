@@ -69,6 +69,7 @@ roles:
       - pr_feat_dashboards
       - pr_feat_alerting
       - pr_feat_acceleration
+      - pr_feat_investigate
       - pr_workspace_soc
 
   - name: rl_it_engineer

@@ -92,6 +92,9 @@ data_bundles:
       context. Deliberately OVERLAPS pr_data_sec_endpoint and pr_data_ops_infra:
       an analyst triaging one host needs both, and the overlap is what makes
       Splunk's union behaviour observable.
+    single_role_justification: >-
+      Only rl_cov_overlap. This bundle exists to make the union of overlapping
+      index sets observable, which no population role would demonstrate.
     indexes_allowed:
       - res_non_sec_win_*
       - res_non_sec_lin_*
@@ -148,6 +151,10 @@ data_bundles:
 
   - name: pr_data_ot_regulated
     description: NERC CIP SCADA telemetry. Class 4 Control data under a regulator.
+    single_role_justification: >-
+      Only rl_ot_engineer today. Keeping the regulated OT index in its own
+      bundle is what allows a CIP-scoped grant to be made and revoked without
+      touching unregulated OT data.
     indexes_allowed:
       - ctl_cip_ics_scd_*
     indexes_default:
@@ -158,6 +165,10 @@ data_bundles:
       Plant historian telemetry, Class 4 but not regulated. Separate from
       pr_data_ot_regulated so compliance isolation can be tested inside one
       data class, and not only across classes.
+    single_role_justification: >-
+      Only rl_ot_engineer today. It is separate from pr_data_ot_regulated so
+      that compliance isolation can be tested inside one data class; a
+      plant-operations read-only role would hold this bundle alone.
     indexes_allowed:
       - ctl_non_ics_hst_*
     indexes_default:
@@ -168,6 +179,10 @@ data_bundles:
       Enterprise application data and public reference feeds. Weather is here
       because it serves load and price forecasting, which is an application
       concern.
+    single_role_justification: >-
+      Only rl_it_engineer today. Business application data is held by
+      application owners and business analysts, which are populations this
+      test catalog does not model.
     indexes_allowed:
       - ent_non_app_col_o365_*
       - ent_non_app_itm_*
@@ -210,6 +225,10 @@ search_bundles:
     description: >-
       The default for a service account. Narrow window, no scheduling, no real
       time.
+    single_role_justification: >-
+      Only rl_svc_siem_ingest today. The strategy makes this the default
+      envelope for every service account, so each new service account is a
+      further holder.
     capabilities: [search]
     envelope:
       srchTimeWin: 86400          # 24 hours
@@ -225,6 +244,10 @@ search_bundles:
       bundles must end with 20 jobs and 500 MB, so the test proves Splunk takes
       the maximum of each attribute separately, and not simply the values of the
       more generous bundle.
+    single_role_justification: >-
+      Only rl_cov_search. This bundle exists to make the per-attribute quota
+      maximum observable, and its disk quota is deliberately lower than
+      pr_search_basic, which no population role should hold.
     capabilities: [search]
     envelope:
       srchTimeWin: 604800         # 7 days
@@ -255,12 +278,18 @@ feature_bundles:
 
   - name: pr_feat_alerting
     description: Create and tune scheduled alerts.
+    single_role_justification: >-
+      Only rl_soc_t2 today. Alert authoring belongs to any content-authoring
+      role, which this catalog models once.
     capabilities:
       - edit_search_schedule_window
       - edit_search_schedule_priority
 
   - name: pr_feat_acceleration
     description: Accelerate reports and data models.
+    single_role_justification: >-
+      Only rl_soc_t2 today. Acceleration is a power-user grant that any
+      content-authoring role would take.
     capabilities:
       - accelerate_search
 
@@ -276,15 +305,24 @@ feature_bundles:
     description: >-
       Read-only sight of the role and user catalog, which an access review
       needs. Read-only, so not sensitive.
+    single_role_justification: >-
+      Only rl_compliance_auditor. Read-only sight of the role catalog is what
+      an access review needs, and access review is a compliance function by
+      design rather than by accident.
     capabilities:
       - list_all_roles
       - list_all_users
 
   - name: pr_feat_investigate
     description: >-
-      Upload a file for ad-hoc analysis during an investigation. Holds a
-      sensitive capability, so it is named pr_feat_admin_* below instead — see
-      pr_feat_admin_data. This bundle keeps only the non-sensitive part.
+      Read a local file into a search during an investigation, for example an
+      indicator list, and read configuration through REST. Neither capability is
+      in the sensitive tier: input_file reads into a search and does not write to
+      an index, which edit_upload_and_index does and which lives in
+      pr_feat_admin_data.
+    single_role_justification: >-
+      Only rl_soc_t2 today. Detection engineering is the activity that needs it;
+      a threat-intelligence role would be the second holder.
     capabilities:
       - input_file
       - rest_properties_get
@@ -299,6 +337,9 @@ feature_bundles:
   - name: pr_feat_admin_platform
     description: Platform administration. SENSITIVE.
     sensitive: true
+    single_role_justification: >-
+      Only rl_platform_admin, by design. See pr_feat_admin_data — the pair
+      exists to be held separately.
     capabilities:
       - edit_user
       - edit_roles
@@ -319,6 +360,10 @@ feature_bundles:
       pr_feat_admin_platform so that no single role can both reconfigure the
       platform and delete the record of it.
     sensitive: true
+    single_role_justification: >-
+      Only rl_data_custodian, by design. One holder is the point: separating
+      data destruction from platform administration is what stops a single
+      account reconfiguring the platform and destroying the record.
     capabilities:
       - indexes_edit
       - delete_by_keyword
@@ -349,8 +394,13 @@ workspace_bundles:
 
   - name: pr_workspace_ot
     description: Operations Technology workspace.
+    single_role_justification: >-
+      Only rl_ot_engineer. As above.
     apps: [tristate_ot_workspace]
 
   - name: pr_workspace_audit
     description: Compliance and audit reviewer workspace.
+    single_role_justification: >-
+      Only rl_compliance_auditor. A workspace serves one population by nature;
+      that is what a workspace is.
     apps: [tristate_audit_workspace]

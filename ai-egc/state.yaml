@@ -1,14 +1,16 @@
 project: splunk-rbac-test-harness
 lifecycle_state: build
-active_work: WRK-003
+active_work: WRK-005
 next_action: >-
-  Reza to review the Phase 3 catalog proposal — 29 bundles, 15 roles, 15 users,
-  29 covered behaviours, expectations hand written for every role. Design
-  reasons in ADR-013; the capability-name corrections in ADR-012. Worth
-  challenging: the two-admin-bundle split of duties, whether six coverage roles
-  is the right price for attribution, the res_pci_sec_hsm_l compliance boundary
-  that only rl_compliance_auditor crosses, and the schedule_rtsearch addition to
-  the search-execution list. On approval, WRK-004 (implement RBAC in Splunk)
-  runs to completion without check-ins.
+  Phase 5 (WRK-005) — the automated test suites and reporting. Static suite
+  offline, behavioural suite per test user against expectations.yaml, and each of
+  the seven detections proven to fire on an injected violation.
+  ONE DECISION FIRST, and it is Reza's: ADR-014 finding 1 shows that run_collect
+  and run_mcollect reach every user on Splunk 10.4.1 and cannot be revoked, so
+  the sensitive-tier isolation the strategy requires is unachievable for those
+  two. Strategy 2.1 must either drop them from the sensitive tier with that
+  reasoning recorded, or state the control is unenforceable on this release and
+  rely on audit rather than prevention. The al_rbac_destructive_capability_check
+  detection will report 14 of 15 roles until that is settled — correctly.
 last_updated: 2026-08-18
 updated_by: Reza Hosseiny

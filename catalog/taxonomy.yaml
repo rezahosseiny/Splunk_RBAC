@@ -163,6 +163,69 @@ destructive_capability_allowlist:
   - rl_data_custodian
   - rl_platform_admin
 
+# Platform floors — MEASURED on the target release, not assumed.
+#
+# Splunk grants some capabilities and enforces some minimum quota values that no
+# role configuration can change. Recorded here as facts so the tests compare
+# against reality while the reality stays visible. Folding them into
+# expectations.yaml instead would make every test pass and hide that two
+# sensitive capabilities reach every user.
+#
+# See ADR-014 for the evidence and the consequences.
+platform_floors:
+  measured_on: Splunk 10.4.1 (build 5a009d941268)
+  measured_date: 2026-08-18
+  method: >-
+    Read /services/authentication/current-context as each of the 15 test users
+    and subtracted what the bundles grant. Revocation was attempted with
+    "= disabled" on an imported bundle and on the directly held role; neither
+    removed anything.
+
+  # Held by every one of the 15 test users, and unearned — that is, present for
+  # at least one role whose bundles do not grant it.
+  #
+  # Measuring this needed care. A first attempt intersected each user's
+  # "unexpected" capabilities and found only three, because a capability that a
+  # role legitimately grants does not look unexpected for that role. Comparing
+  # per role against that role's own grant gives the true figure: five.
+  capabilities:
+    schedule_rtsearch:
+      unearned_by_roles: 15
+      note: >-
+        ADR-013 decided to grant this to no role. That decision is not
+        implementable on this release; it stands as recorded intent.
+    list_all_objects:
+      unearned_by_roles: 15
+    run_mcollect:
+      unearned_by_roles: 15
+      note: SENSITIVE and DESTRUCTIVE in this strategy, yet unavoidable.
+    run_collect:
+      unearned_by_roles: 14
+      note: >-
+        SENSITIVE and DESTRUCTIVE. Only rl_data_custodian is meant to hold it;
+        every other role holds it anyway.
+    edit_own_objects:
+      unearned_by_roles: 12
+
+  # A POSITIVE value below the floor is silently raised to it. Zero is honoured,
+  # so "no real-time searches at all" is achievable while "at most four" is not.
+  quota_minimums:
+    srchJobsQuota: 3
+    rtSrchJobsQuota: 6
+
+  # Accepted by the write and then not stored. Setting it achieves nothing.
+  unsupported_attributes:
+    srchMaxTime: >-
+      Not a role attribute on this release. Kept in the bundles as recorded
+      intent for a release that supports it.
+
+  # The same intent in two representations. A comparison must treat them as equal.
+  equivalent_values:
+    srchTimeWin:
+      catalog: 0
+      splunk: -1
+      meaning: no limit
+
 # Built-in roles: never modified, never imported.
 builtin_roles: [admin, power, user, can_delete]
 

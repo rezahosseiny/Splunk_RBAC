@@ -201,6 +201,35 @@ class Catalog:
                 caps.update(bundle.get("capabilities", []))
         return sorted(caps)
 
+    def platform_capability_floor(self):
+        """Capabilities every user holds regardless of role (ADR-014)."""
+        floors = self.taxonomy.get("platform_floors") or {}
+        return set(floors.get("capabilities") or {})
+
+    def expected_live_capabilities(self, role_name):
+        """What a behavioural test should see: the grant plus the platform floor.
+
+        Kept separate from computed_capabilities, which is what the CATALOG
+        grants. Conflating the two would make the floor invisible, and the floor
+        includes two capabilities this strategy calls sensitive.
+        """
+        return sorted(set(self.computed_capabilities(role_name))
+                      | self.platform_capability_floor())
+
+    def effective_quota(self, key, value):
+        """One quota value as Splunk will actually enforce it (ADR-014)."""
+        floors = self.taxonomy.get("platform_floors") or {}
+        minimum = (floors.get("quota_minimums") or {}).get(key)
+        # Zero is honoured, so a quota of "none at all" is achievable. Only a
+        # positive value below the floor is raised.
+        if (minimum is not None and value is not None
+                and 0 < value < minimum):
+            return minimum
+        equivalent = (floors.get("equivalent_values") or {}).get(key)
+        if equivalent and value == equivalent.get("catalog"):
+            return equivalent.get("splunk")
+        return value
+
     def computed_quotas(self, role_name):
         """Per-attribute MAXIMUM across the role's search bundles.
 
@@ -239,6 +268,7 @@ class Catalog:
         self._check_users()
         self._check_expectations()
         self._check_coverage_matrix()
+        self._check_bundle_use()
         self._check_sizing()
 
     def _check_bundle_concerns(self):
@@ -486,6 +516,34 @@ class Catalog:
                     self._err(f"role {role['name']}: records "
                               f"differs_from_base_by={target} but differs from "
                               f"rl_cov_base by {sorted(difference)}")
+
+    def _check_bundle_use(self):
+        """The strategy's necessity and reuse tests, applied to the catalog.
+
+        Necessity: a bundle no role imports is not a bundle. It is dead
+        configuration that still deploys, still appears in an audit, and still
+        has to be explained.
+
+        Reuse: a bundle exactly one role imports should arguably be that role's
+        own grant, marked as a deliberate exception. A warning rather than an
+        error, because the strategy permits it with justification.
+        """
+        importers = {name: [] for name in self.bundle_by_name}
+        for role in self.role_list:
+            for bundle in role.get("bundles", []):
+                if bundle in importers:
+                    importers[bundle].append(role["name"])
+        for bundle, roles in sorted(importers.items()):
+            if not roles:
+                self._err(f"bundle {bundle}: no role imports it. The strategy's "
+                          f"necessity test requires at least one role to need a "
+                          f"bundle; remove it or assign it")
+            elif len(roles) == 1 and not self.bundle_by_name[bundle].get(
+                    "single_role_justification"):
+                self._warn(f"bundle {bundle}: imported by only {roles[0]}. The "
+                           f"strategy's reuse test says such grants belong in "
+                           f"the role itself, marked as an exception; add "
+                           f"single_role_justification to keep it")
 
     def _check_sizing(self):
         """Warn, never fail, when a category leaves the strategy's target."""

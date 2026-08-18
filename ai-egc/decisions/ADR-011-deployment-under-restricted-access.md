@@ -2,7 +2,7 @@
 id: ADR-011
 type: decision
 title: Deployment path when the app directory is not writable
-status: proposed
+status: accepted
 created: 2026-08-18
 owner: Reza Hosseiny
 supersedes: null
@@ -95,4 +95,4 @@ consequential act than supplying credentials the project needs anyway.
 
 ## Approval
 
-Pending — Reza Hosseiny
+Approved by Reza Hosseiny, 2026-08-18. ADR-013 records the five review decisions taken the same day.
