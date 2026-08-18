@@ -1,0 +1,25 @@
+# Non-secret settings. Credentials live in config/.env (gitignored).
+
+splunk:
+  # Standalone dev instance on this VM.
+  management_url: https://localhost:8089
+  splunk_home: /opt/splunk
+  # Self-signed certificate on the dev instance; tighten for any shared host.
+  verify_tls: false
+
+deployment:
+  # Deviation from the strategy's authoritative paths: a standalone instance has
+  # no search head cluster deployer and no cluster manager, so apps deploy under
+  # etc/apps rather than etc/shcluster/apps and etc/manager-apps (ADR-004).
+  app_dir: /opt/splunk/etc/apps
+  apps:
+    - tristate_indexes
+  # Filesystem sync needs write access to app_dir, which is owned by the splunk
+  # user. Where that is unavailable, deploy/deploy_rest.py pushes the same
+  # generated stanzas through the management API instead, letting splunkd do the
+  # writing (ADR-011).
+  method: rest        # rsync | rest
+
+seeding:
+  # Host value stamped on seeded events. Deliberately not a real asset name.
+  host: splunk-rbac-lab

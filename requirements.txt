@@ -1,0 +1,4 @@
+# Plain PEP 8 Python, no framework beyond pytest (ADR-002).
+PyYAML>=6.0
+requests>=2.31
+pytest>=8.0

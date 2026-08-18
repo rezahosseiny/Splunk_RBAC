@@ -12,6 +12,8 @@ raw_files/catalog/
 
 # Generated, never authoritative
 build/
+# Coverage-fixture events: regenerated deterministically by `make fixtures`.
+sample_data/fixtures/
 reports/
 __pycache__/
 *.pyc

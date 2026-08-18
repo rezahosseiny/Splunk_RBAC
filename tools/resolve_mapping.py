@@ -22,6 +22,7 @@ import argparse
 import collections
 import csv
 import fnmatch
+import json
 import os
 import re
 import sys
@@ -271,6 +272,27 @@ def main():
             print(f"  {problem}")
     else:
         print("Naming validation: clean.")
+
+    inventory = {
+        "source_export": args.csv_path,
+        "indexes": {
+            index: {
+                "events": bucket["events"],
+                "sourcetypes": sorted(bucket["sourcetypes"]),
+                "sources": sorted(bucket["sources"]),
+                "from_legacy": sorted(bucket["from_legacy"]),
+            }
+            for index, bucket in sorted(governed.items())
+        },
+    }
+    os.makedirs(os.path.join(os.path.dirname(CATALOG), "reports"),
+                exist_ok=True)
+    inv_path = os.path.join(os.path.dirname(CATALOG), "reports",
+                            "resolved_inventory.json")
+    with open(inv_path, "w", encoding="utf-8") as handle:
+        json.dump(inventory, handle, indent=1, sort_keys=True)
+    print(f"Resolved inventory written to "
+          f"{os.path.relpath(inv_path, os.path.dirname(CATALOG))}")
 
     write_remediation(remediation, quarantined, args.csv_path, args.out)
     print(f"\nRemediation map written to {args.out} "

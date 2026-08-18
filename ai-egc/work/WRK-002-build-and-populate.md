@@ -59,3 +59,49 @@ export into them, entirely by script and repeatably.
 
 `reports/seed_verification.md` (per-index expected vs landed counts),
 deploy log, and the generated `build/apps/tristate_indexes` tree.
+
+## Progress — 2026-08-18
+
+**Written and working offline:**
+
+- `generators/loader.py` — catalog loading, the naming regexes, mapping
+  resolution, retention computation, and validation. Every tool imports it, so
+  the rules exist once. `make validate` clean: 35 indexes, 33 legacy feeds,
+  3 fixtures, 25 units.
+- `generators/build.py` — renders `tristate_indexes` (indexes.conf, props.conf,
+  app.conf, local.meta). Version is stamped from a catalog content hash, so it
+  changes on every catalog change without anyone remembering to bump it.
+  Output: 35 indexes, 112 sourcetypes.
+- `generators/make_fixtures.py` — deterministic synthetic events for the three
+  coverage fixtures (500 events). No clock and no RNG, so a rebuild reproduces
+  them byte-identically.
+- `deploy/splunk_api.py` — REST wrapper, plain requests, version-agnostic.
+- `deploy/seed_data.py` — resolves, redacts, groups, and streams. Verified
+  offline: 31,108 export events plus 500 fixture events resolve into 156
+  destinations with redaction clean, then it stops with an actionable message
+  about missing credentials.
+- `deploy/deploy_rest.py`, `deploy/deploy.sh`, `deploy/teardown.py`,
+  `deploy/teardown.sh` — both deployment paths and the catalog-scoped teardown.
+- `Makefile`, `requirements.txt`, `config/settings.yaml`, `config/.env.example`.
+
+`make offline` runs validate, fixtures, profile, build, and the redaction
+verification end to end and passes.
+
+**Blocked on two inputs only Reza can supply (ADR-011):**
+
+1. Splunk admin credentials in `config/.env`. Needed by deploy, seed, and
+   verification. `make connect` confirms them.
+2. Nothing else, if the default REST deployment path is used. If the filesystem
+   sync path is preferred instead, write access to `/opt/splunk/etc/apps` — the
+   directory is owned by `splunk:splunk` and `sudo` needs a password.
+
+Acceptance criteria 1 through 5 are all instance-side and cannot be evidenced
+until credentials exist. Everything up to the instance boundary is done.
+
+## Deferred note on timestamp hints
+
+102 of the 112 governed sourcetypes have no recorded TZ or TIME_FORMAT and rely
+on Splunk auto-detection. `build.py` lists them on every run rather than
+silently defaulting. Auto-detection is adequate for a test harness, but each one
+is a real props.conf decision for production onboarding, and the list is the
+work item for that.

@@ -2,11 +2,12 @@ project: splunk-rbac-test-harness
 lifecycle_state: build
 active_work: WRK-002
 next_action: >-
-  Phase 2 (WRK-002) — build and populate. Generate the index app from the
-  catalog, deploy it to the standalone instance at /opt/splunk, and seed the
-  sample export into the governed indexes with redaction applied. Execution
-  phase: runs to completion without check-ins. Splunk admin credentials in
-  config/.env are needed for the REST-driven steps; the generator and the
-  static side run without them.
+  Phase 2 (WRK-002) is built and passing offline — `make offline` runs
+  validate, fixtures, profile, build, and redaction verification end to end.
+  BLOCKED on Reza for one input: Splunk admin credentials in config/.env
+  (copy config/.env.example). Then `make connect && make deploy && make seed`
+  completes the phase. Optional second input: write access to
+  /opt/splunk/etc/apps if the filesystem deploy path is preferred over the
+  default REST path — see ADR-011.
 last_updated: 2026-08-18
 updated_by: Claude (AI participant), session with Reza Hosseiny

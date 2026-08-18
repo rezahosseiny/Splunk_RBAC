@@ -9,7 +9,10 @@
 ## Where things stand
 
 Lifecycle is **build**. **WRK-001 (Phase 1) is complete and approved.**
-**WRK-002 (Phase 2 — build and populate) is the active phase.**
+**WRK-002 (Phase 2) is written and passing offline, blocked on Splunk
+credentials** — see the Progress section of WRK-002 and ADR-011. `make offline`
+runs the whole no-credentials pipeline and passes; `make connect` is the first
+step once `config/.env` exists.
 
 Reza gave blanket approval of INT-001 and ADR-001 through ADR-010 in session on
 2026-08-18, and directed that the project move to Phase 2. All ten decision
