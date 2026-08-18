@@ -97,8 +97,10 @@ expectations:
   rl_soc_t2:
     intent: >-
       Investigate and engineer detections. Adds identity data across every
-      provider, a wider runtime envelope, and content authoring. Still must not
-      see PCI scope or OT data.
+      provider, PCI scope, a wider runtime envelope, and content authoring.
+      Reaches the HSM logs because a payment or cryptographic incident needs
+      them, and an exception for every such incident would make the exception
+      routine. Still must not see OT data.
     allowed_indexes:
       - res_non_sec_fwl_l
       - res_non_sec_nac_m
@@ -111,6 +113,7 @@ expectations:
       - res_non_sec_iam_oci_l
       - res_non_sec_iam_ad_m
       - res_non_sec_iam_nps_l
+      - res_pci_sec_hsm_l
       - notable
       - risk
       - threat_activity
@@ -129,7 +132,6 @@ expectations:
       - ops_non_inf_vmw_s
       - ops_non_inf_ocl_m
     must_not_reach:
-      - res_pci_sec_hsm_l
       - ctl_cip_ics_scd_s          # OT isolation, from the security direction
       - ctl_non_ics_hst_m
       - ops_non_inf_bad_s
@@ -140,7 +142,6 @@ expectations:
       - search
       - rtsearch
       - schedule_search
-      - schedule_rtsearch
       - edit_own_objects
       - embed_report
       - edit_search_schedule_window
@@ -189,7 +190,6 @@ expectations:
       - search
       - rtsearch
       - schedule_search
-      - schedule_rtsearch
       - edit_own_objects
       - embed_report
     quotas:
@@ -356,7 +356,6 @@ expectations:
       - search
       - rtsearch
       - schedule_search
-      - schedule_rtsearch
       - edit_user
       - edit_roles
       - edit_roles_grantable
@@ -405,7 +404,6 @@ expectations:
       - search
       - rtsearch
       - schedule_search
-      - schedule_rtsearch
       - indexes_edit
       - delete_by_keyword
       - run_collect

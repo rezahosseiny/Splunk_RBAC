@@ -26,26 +26,37 @@ status: proposed
 # ---------------------------------------------------------------------------
 # Data bundles — 12 (strategy target 8-12)
 # ---------------------------------------------------------------------------
-# Index sets are listed EXPLICITLY, not by wildcard. A wildcard such as
-# ops_non_inf_* reads as "the operational estate" but also silently includes
-# ops_non_inf_bad_s, the quarantine index. Quarantine holds data that failed
-# onboarding and may contain misrouted sensitive content, so it must be granted
-# deliberately and never as a side effect of a pattern.
+# Index patterns wildcard the RETENTION SUFFIX ONLY. One pattern per content
+# code, with the trailing _s/_m/_l replaced by *.
+#
+# Two reasons, and they pull in opposite directions.
+#
+# An explicit list breaks on a retention change. All 26 governed stems are
+# currently unique, so moving one index from _m to _l would silently drop it from
+# every bundle that named it, and the bundle would still validate.
+#
+# A broad wildcard such as ops_non_inf_* over-grants. It also matches
+# ops_non_inf_bad_s, the quarantine index, which holds data that failed
+# onboarding and may contain misrouted sensitive content. It would hand that to
+# every operational role as a side effect of a pattern nobody read closely.
+#
+# Wildcarding only the suffix gets both: the grant survives a retention change,
+# and it still names what it grants. Quarantine needs its own pattern.
 data_bundles:
 
   - name: pr_data_ops_infra
     description: Operational IT infrastructure telemetry. Excludes quarantine.
     indexes_allowed:
-      - ops_non_inf_ndl_m
-      - ops_non_inf_stg_m
-      - ops_non_inf_dns_m
-      - ops_non_inf_lin_m
-      - ops_non_inf_win_m
-      - ops_non_inf_whm_s
-      - ops_non_inf_vmw_s
-      - ops_non_inf_ocl_m
+      - ops_non_inf_ndl_*
+      - ops_non_inf_stg_*
+      - ops_non_inf_dns_*
+      - ops_non_inf_lin_*
+      - ops_non_inf_win_*
+      - ops_non_inf_whm_*
+      - ops_non_inf_vmw_*
+      - ops_non_inf_ocl_*
     indexes_default:
-      - ops_non_inf_lin_m
+      - ops_non_inf_lin_*
 
   - name: pr_data_ops_quarantine
     description: >-
@@ -53,27 +64,27 @@ data_bundles:
       that failed onboarding can hold anything, including misrouted sensitive
       content, so access to it is a deliberate grant.
     indexes_allowed:
-      - ops_non_inf_bad_s
+      - ops_non_inf_bad_*
     indexes_default:
-      - ops_non_inf_bad_s
+      - ops_non_inf_bad_*
 
   - name: pr_data_sec_network
     description: Network security telemetry — firewall and network access control.
     indexes_allowed:
-      - res_non_sec_fwl_l
-      - res_non_sec_nac_m
+      - res_non_sec_fwl_*
+      - res_non_sec_nac_*
     indexes_default:
-      - res_non_sec_fwl_l
+      - res_non_sec_fwl_*
 
   - name: pr_data_sec_endpoint
     description: Endpoint and host security telemetry.
     indexes_allowed:
-      - res_non_sec_edr_l
-      - res_non_sec_dlp_l
-      - res_non_sec_win_l
-      - res_non_sec_lin_l
+      - res_non_sec_edr_*
+      - res_non_sec_dlp_*
+      - res_non_sec_win_*
+      - res_non_sec_lin_*
     indexes_default:
-      - res_non_sec_edr_l
+      - res_non_sec_edr_*
 
   - name: pr_data_sec_host_triage
     description: >-
@@ -82,21 +93,21 @@ data_bundles:
       an analyst triaging one host needs both, and the overlap is what makes
       Splunk's union behaviour observable.
     indexes_allowed:
-      - res_non_sec_win_l
-      - res_non_sec_lin_l
-      - ops_non_inf_win_m
-      - ops_non_inf_whm_s
+      - res_non_sec_win_*
+      - res_non_sec_lin_*
+      - ops_non_inf_win_*
+      - ops_non_inf_whm_*
     indexes_default:
-      - res_non_sec_win_l
+      - res_non_sec_win_*
 
   - name: pr_data_identity_cloud
     description: Cloud identity providers — Entra ID, Okta, Oracle IDCS.
     indexes_allowed:
-      - res_non_sec_iam_aad_l
-      - res_non_sec_iam_okt_l
-      - res_non_sec_iam_oci_l
+      - res_non_sec_iam_aad_*
+      - res_non_sec_iam_okt_*
+      - res_non_sec_iam_oci_*
     indexes_default:
-      - res_non_sec_iam_aad_l
+      - res_non_sec_iam_aad_*
 
   - name: pr_data_identity_onprem
     description: >-
@@ -104,10 +115,10 @@ data_bundles:
       pr_data_identity_cloud, so a role holding both proves that the union is
       strictly larger than either bundle.
     indexes_allowed:
-      - res_non_sec_iam_ad_m
-      - res_non_sec_iam_nps_l
+      - res_non_sec_iam_ad_*
+      - res_non_sec_iam_nps_*
     indexes_default:
-      - res_non_sec_iam_ad_m
+      - res_non_sec_iam_ad_*
 
   - name: pr_data_es_content
     description: >-
@@ -131,16 +142,16 @@ data_bundles:
       PCI-scoped data. The only regulated index in the catalog, so this bundle
       carries the compliance-isolation boundary.
     indexes_allowed:
-      - res_pci_sec_hsm_l
+      - res_pci_sec_hsm_*
     indexes_default:
-      - res_pci_sec_hsm_l
+      - res_pci_sec_hsm_*
 
   - name: pr_data_ot_regulated
     description: NERC CIP SCADA telemetry. Class 4 Control data under a regulator.
     indexes_allowed:
-      - ctl_cip_ics_scd_s
+      - ctl_cip_ics_scd_*
     indexes_default:
-      - ctl_cip_ics_scd_s
+      - ctl_cip_ics_scd_*
 
   - name: pr_data_ot_process
     description: >-
@@ -148,9 +159,9 @@ data_bundles:
       pr_data_ot_regulated so compliance isolation can be tested inside one
       data class, and not only across classes.
     indexes_allowed:
-      - ctl_non_ics_hst_m
+      - ctl_non_ics_hst_*
     indexes_default:
-      - ctl_non_ics_hst_m
+      - ctl_non_ics_hst_*
 
   - name: pr_data_ent_apps
     description: >-
@@ -158,11 +169,11 @@ data_bundles:
       because it serves load and price forecasting, which is an application
       concern.
     indexes_allowed:
-      - ent_non_app_col_o365_m
-      - ent_non_app_itm_m
-      - pub_non_app_wea_s
+      - ent_non_app_col_o365_*
+      - ent_non_app_itm_*
+      - pub_non_app_wea_*
     indexes_default:
-      - ent_non_app_itm_m
+      - ent_non_app_itm_*
 
 # ---------------------------------------------------------------------------
 # Search bundles — 4 (strategy target 3-4)
@@ -183,10 +194,11 @@ search_bundles:
 
   - name: pr_search_advanced
     description: >-
-      Power-user envelope with scheduling and real time. schedule_rtsearch sits
-      here rather than in a feature bundle: it governs how a search runs, which
-      is this category's concern.
-    capabilities: [search, rtsearch, schedule_search, schedule_rtsearch]
+      Power-user envelope with scheduling and ad-hoc real time. It does NOT grant
+      schedule_rtsearch: a scheduled real-time search is the most expensive
+      object a user can create, and the strategy's content standards discourage
+      real-time panels. rtSrchJobsQuota still bounds ad-hoc real-time use.
+    capabilities: [search, rtsearch, schedule_search]
     envelope:
       srchTimeWin: 0              # no limit
       srchJobsQuota: 10

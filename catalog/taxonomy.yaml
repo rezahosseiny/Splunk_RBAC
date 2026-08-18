@@ -89,21 +89,23 @@ retention:
       archive. Needs a decision; see ADR-008 Consequences.
 
 # Splunk's search-execution capabilities live only in pr_search_* bundles.
-#
-# The strategy names the first three. schedule_rtsearch is added here as a
-# conscious decision, not an oversight: it governs whether a real-time search may
-# be scheduled, which is how a search runs and therefore this category's concern.
-# To place it in a pr_feat_* bundle would separate it from the rtsearch
-# capability and the real-time quota that constrain it, and the three only make
-# sense read together.
-#
-# Recorded so the addition is reviewable. Remove it and the validator will reject
-# pr_search_advanced, which is the behaviour that surfaced the question.
+# Exactly the three the strategy names, and no more.
 search_execution_capabilities:
   - search
   - rtsearch
   - schedule_search
-  - schedule_rtsearch     # addition; see the note above
+
+# Capabilities that exist on the target release and are deliberately granted to
+# NO role. Recorded so the absence is a decision on the record, and so a future
+# reader does not assume an oversight.
+capabilities_granted_to_no_role:
+  schedule_rtsearch:
+    reason: >-
+      Scheduling a real-time search is the most expensive object a user can
+      create, and the strategy's own content standards say to avoid real-time
+      panels in favour of scheduled reports, summary indexes, and accelerated
+      data models. Ad-hoc real time stays available through rtsearch and the
+      rtSrchJobsQuota limit. Revisit if a use case appears.
 
 # Sensitive tier.
 #

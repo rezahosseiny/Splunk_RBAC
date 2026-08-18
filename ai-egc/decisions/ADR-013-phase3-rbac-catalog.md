@@ -41,20 +41,34 @@ testable.
 
 Six decisions inside that deserve their reasons stated.
 
-### 1. Index sets are listed explicitly, never by wildcard
+### 1. Index patterns wildcard the retention suffix, and only that
 
-`pr_data_ops_infra` names its eight indexes. It does not use `ops_non_inf_*`.
+`pr_data_ops_infra` grants `ops_non_inf_ndl_*`, `ops_non_inf_lin_*`, and six
+more. One pattern for each content code, with the trailing `_s`/`_m`/`_l`
+replaced by `*`.
 
-The wildcard reads as "the operational estate" but also matches
-`ops_non_inf_bad_s`, the quarantine index. Quarantine holds data that failed
-onboarding, which by definition was not classified and may contain misrouted
-sensitive content. A wildcard would hand it to every NOC operator as a side
-effect of a pattern nobody read closely.
+Two failure modes pull in opposite directions, and this granularity avoids both.
 
-The parallel catalog in `raw_files/catalog` has exactly this defect. Its
-`pr_data_ops_inf` bundle grants `ops_non_inf_*` and its own comment says
-"incl. quarantine", so the grant was noticed and accepted rather than missed —
-which is worse.
+**An explicit list breaks on a retention change.** All 26 governed index stems
+are currently unique, so moving one index from `_m` to `_l` would silently drop
+it from every bundle that named it. The bundle would still validate, the
+deployment would still succeed, and a role would quietly lose access.
+
+**A broad wildcard over-grants.** `ops_non_inf_*` reads as "the operational
+estate" but also matches `ops_non_inf_bad_s`, the quarantine index. Quarantine
+holds data that failed onboarding, which by definition was not classified and may
+contain misrouted sensitive content. That pattern would hand it to every NOC
+operator as a side effect nobody read closely. `res_non_sec_*` behaves the same
+way: it pulls all five identity indexes into a bundle meant for security
+telemetry.
+
+Wildcarding only the suffix survives a retention change and still names what it
+grants. Quarantine needs its own pattern, `ops_non_inf_bad_*`, which is what
+makes granting it a decision.
+
+The parallel catalog in `raw_files/catalog` grants `ops_non_inf_*`, and its own
+comment says "incl. quarantine" — so the grant was noticed and accepted rather
+than missed, which is worse.
 
 ### 2. The quota test uses an asymmetric pair
 
@@ -117,6 +131,33 @@ construction.
 Six of fifteen roles exist for observation rather than for a population. They
 carry `purpose: coverage`, and the validator requires every role to be named by a
 coverage-matrix row so that nothing exists without a stated reason.
+
+## Decisions taken in review, 2026-08-18
+
+Reza settled five open items. Each is now reflected in the catalog.
+
+1. **Wildcard granularity: retention suffix only.** As described above.
+2. **Keep all six coverage roles.** Full attribution is worth six roles and six
+   test users. The strategy's own reasoning applies: new Business Roles are
+   cheap, new bundles are not.
+3. **Keep the two-role administrative split.** `rl_platform_admin` and
+   `rl_data_custodian` stay separate. Where one person must hold both, that is an
+   exception under the strategy's exception process, and the one-role-per-user
+   rule makes it visible.
+4. **SOC tier 2 also reaches PCI scope.** A senior analyst investigating a
+   payment or cryptographic incident needs the HSM logs, and requiring an
+   exception for each such incident would make the exception routine. Tier 1 and
+   the service account remain denied, and they hold the same class and domain as
+   tier 2, so the compliance boundary is still observable — BOUND-03 now rests on
+   that pair.
+5. **`schedule_rtsearch` is granted to no role.** The strategy's list of three
+   search-execution capabilities stands unamended. A scheduled real-time search
+   is the most expensive object a user can create, and the strategy's own content
+   standards discourage real-time panels in favour of scheduled reports and
+   accelerated data models. Ad-hoc real time stays available through `rtsearch`,
+   bounded by `rtSrchJobsQuota`. Recorded in `taxonomy.yaml` under
+   `capabilities_granted_to_no_role`, so the absence is a decision and not an
+   oversight.
 
 ## Consequences
 

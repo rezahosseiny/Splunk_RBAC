@@ -46,15 +46,22 @@ roles:
     purpose: population
     description: >-
       Security operations, second line, and detection engineering. Adds identity
-      data, a wider runtime envelope, and content authoring. Holds both identity
-      bundles, which are disjoint, so the effective index set is strictly larger
-      than either.
+      data, PCI scope, a wider runtime envelope, and content authoring. Holds
+      both identity bundles, which are disjoint, so the effective index set is
+      strictly larger than either.
+
+      Holds pr_data_pci_scope because a senior analyst investigating a payment or
+      cryptographic incident needs the HSM logs, and requiring an exception for
+      every such incident would make the exception routine. Tier 1 and the
+      service account remain denied, so the compliance-isolation boundary is
+      still observable.
     business_unit: sec_cyber
     bundles:
       - pr_data_sec_network
       - pr_data_sec_endpoint
       - pr_data_identity_cloud
       - pr_data_identity_onprem
+      - pr_data_pci_scope
       - pr_data_es_content
       - pr_data_ops_infra
       - pr_search_advanced

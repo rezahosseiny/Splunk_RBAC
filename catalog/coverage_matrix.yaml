@@ -134,11 +134,13 @@ behaviours:
   - id: BOUND-03
     behaviour: A regulated index is isolated from a role that is otherwise eligible for its domain.
     strategy_basis: Segregation rules — compliance isolation.
-    roles: [rl_soc_t1, rl_compliance_auditor]
+    roles: [rl_soc_t1, rl_soc_t2, rl_compliance_auditor, rl_svc_siem_ingest]
     observable_because: >-
-      rl_soc_t1 reaches several res_non_sec_* security indexes but must not reach
-      res_pci_sec_hsm_l. Only rl_compliance_auditor reaches it. The compliance
-      driver, and not the class or the domain, is what separates them.
+      rl_soc_t1 reaches six res_non_sec_* security indexes but must not reach
+      res_pci_sec_hsm_l, and neither may rl_svc_siem_ingest. Only
+      rl_compliance_auditor and rl_soc_t2 reach it. Tier 1 and tier 2 hold the
+      same data class and the same domain, so the compliance driver together with
+      the role's business need, and nothing else, explains the difference.
     tests: [test_data_access]
 
   - id: BOUND-04
