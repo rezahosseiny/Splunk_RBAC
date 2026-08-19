@@ -131,7 +131,6 @@ sensitive_capabilities:
   edit_search_server:       {reason: platform configuration}
   edit_indexer_cluster:     {reason: platform configuration}
   delete_by_keyword:        {reason: data destruction}
-  run_collect:              {reason: arbitrary index writes}
   indexes_edit:             {reason: index modification (strategy says edit_indexes)}
   edit_roles:               {reason: role administration, addition: true}
   admin_all_objects:        {reason: bypasses object ACLs, addition: true}
@@ -140,7 +139,6 @@ sensitive_capabilities:
   edit_storage_passwords:   {reason: credential modification, addition: true}
   edit_user_seed:           {reason: seeds the admin credential, addition: true}
   edit_upload_and_index:    {reason: writes arbitrary data to an index, addition: true}
-  run_mcollect:             {reason: arbitrary metric index writes, addition: true}
 
 # Capabilities the strategy names that Splunk 10.4.1 does not have. Kept so the
 # absence is a recorded fact and not a silent omission.
@@ -152,16 +150,21 @@ sensitive_capabilities_absent_on_target:
 # Destructive capabilities requiring an explicit allow-list, per the strategy's
 # "destructive capability check" detection. Only roles named in the allow-list
 # may hold one; the detection reports any other holder.
+# run_collect and run_mcollect were dropped from both tiers on 2026-08-18. Splunk
+# 10.4.1 grants them to every user and no role configuration can revoke them
+# (ADR-014), so classifying them as sensitive claimed a control that does not
+# exist. The exposure is real and is recorded under platform_floors; it is not
+# addressed by role design. Finding for Strategy 2.1.
 destructive_capabilities:
   - delete_by_keyword
   - indexes_edit
-  - run_collect
-  - run_mcollect
   - edit_upload_and_index
 
+# Exactly the roles that hold a destructive capability, and no more. Listing a
+# role that holds none would weaken the control: the detection could not then
+# distinguish an intended holder from a role that acquired one by accident.
 destructive_capability_allowlist:
   - rl_data_custodian
-  - rl_platform_admin
 
 # Platform floors — MEASURED on the target release, not assumed.
 #
@@ -198,12 +201,17 @@ platform_floors:
       unearned_by_roles: 15
     run_mcollect:
       unearned_by_roles: 15
-      note: SENSITIVE and DESTRUCTIVE in this strategy, yet unavoidable.
+      note: >-
+        Dropped from the sensitive and destructive tiers on 2026-08-18 because it
+        cannot be withheld. Every user can write to a metric index they can
+        reach. Not addressed by role design; a finding for Strategy 2.1.
     run_collect:
       unearned_by_roles: 14
       note: >-
-        SENSITIVE and DESTRUCTIVE. Only rl_data_custodian is meant to hold it;
-        every other role holds it anyway.
+        Dropped from the sensitive and destructive tiers on 2026-08-18 for the
+        same reason. Every user can write to any index they can reach, which
+        cuts against the principle that raw events stay immutable. Not addressed
+        by role design; a finding for Strategy 2.1.
     edit_own_objects:
       unearned_by_roles: 12
 

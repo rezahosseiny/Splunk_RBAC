@@ -2,7 +2,7 @@
 id: ADR-014
 type: decision
 title: Splunk 10.4.1 enforces capability and quota floors the strategy does not anticipate
-status: proposed
+status: accepted
 created: 2026-08-18
 owner: Reza Hosseiny
 supersedes: null
@@ -121,11 +121,24 @@ the intent survives for a release that supports it.
 
 ## Consequences
 
-- **Two sensitive capabilities cannot be isolated on Splunk 10.4.1.** Strategy
-  2.1 must either drop `run_collect` and `run_mcollect` from the sensitive tier
-  with that reasoning recorded, or state that the control is unenforceable on
-  this release and rely on audit rather than prevention. This is Reza's decision,
-  not the harness's.
+- **Ruling, 2026-08-18: `run_collect` and `run_mcollect` are dropped from the
+  sensitive and destructive tiers.** Splunk 10.4.1 grants them to every user and
+  no role configuration revokes them, so classifying them as sensitive claimed a
+  control that does not exist.
+
+  What this does and does not mean. It removes a false claim; it does not remove
+  the exposure. Every user can still write arbitrary data into any index they can
+  reach, which cuts against the strategy's principle that raw events stay
+  immutable and enrichment is additive. That exposure is now recorded under
+  `platform_floors` in `catalog/taxonomy.yaml` rather than implied by a tier
+  membership that achieved nothing. It is a finding for Strategy 2.1, and it is
+  not addressed by role design on this release.
+
+  With the two removed, the destructive set is `delete_by_keyword`,
+  `indexes_edit`, and `edit_upload_and_index`. All three are genuinely
+  role-gated, exactly one Business Role holds them, and the allow-list names only
+  that role — so `al_rbac_destructive_capability_check` is a meaningful control
+  again and returns nothing on a healthy environment.
 - `schedule_rtsearch` cannot be withheld. The ADR-013 decision to grant it to no
   role is not implementable on this release; the decision stands as intent, and
   the floor records why it is not achieved.
@@ -137,4 +150,4 @@ the intent survives for a release that supports it.
 
 ## Approval
 
-Pending — Reza Hosseiny
+Approved by Reza Hosseiny, 2026-08-18, with the ruling recorded above.

@@ -6,7 +6,7 @@
 | **Location in Repo** | `docs/source_remediation_map.md` |
 | **Author** | Reza Hosseiny |
 | **Status** | Generated |
-| **Last Updated** | 2026-08-18 |
+| **Last Updated** | 2026-08-19 |
 | **Covers** | Every legacy value in the production sample, and the governed value that replaces it. Work list for the remediation programme. |
 
 Legacy values as they exist in production, mapped to the governed

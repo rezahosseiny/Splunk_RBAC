@@ -371,37 +371,49 @@ def render_detections(catalog):
          '| table title roles',
          "5 6 * * *"),
         ("al_rbac_sensitive_capability_sprawl",
-         "Is a sensitive capability granted by a role outside a "
+         "Is a sensitive capability granted by a project role outside a "
          "pr_feat_admin_* bundle?",
          "A result means a sensitive capability was added to a routine bundle. "
-         "The check reads directly assigned capabilities, so a role that "
-         "inherits one through an admin bundle is not a finding.",
+         "It reads DIRECTLY assigned capabilities, so a role that inherits one "
+         "through an admin bundle is not a finding. Built-in roles are excluded: "
+         "the strategy governs admin under the sensitive tier and does not "
+         "expect this project to change it.",
          f'| rest /services/authorization/roles '
-         f'| fields title capabilities | search NOT title=pr_feat_admin_* '
+         f'| fields title capabilities '
+         f'| search (title=pr_* OR title=rl_*) AND NOT title=pr_feat_admin_* '
          f'| mvexpand capabilities | search capabilities IN ({sensitive}) '
          f'| table title capabilities',
          "10 6 * * *"),
         ("al_rbac_destructive_capability_check",
-         "Does any role grant a destructive capability outside the "
+         "Does any Business Role grant a destructive capability outside the "
          "allow-list?",
-         "A result means a role can destroy or rewrite data without being "
-         "approved for it. The allow-list is in catalog/taxonomy.yaml.",
+         "A result means a role a USER can hold is able to destroy or rewrite "
+         "data without approval. It examines rl_* Business Roles only: a "
+         "pr_feat_admin_* bundle holding such a capability is the intended "
+         "grant point, and a built-in role is outside this project's scope. "
+         "The allow-list is in catalog/taxonomy.yaml.",
          f'| rest /services/authorization/roles '
          f'| fields title capabilities imported_capabilities '
+         f'| search title=rl_* AND NOT title IN ({allowlist}) '
          f'| eval all_caps=mvappend(capabilities, imported_capabilities) '
          f'| fields title all_caps | mvexpand all_caps '
          f'| search all_caps IN ({destructive}) '
-         f'| search NOT title IN ({allowlist}) '
          f'| stats values(all_caps) as capabilities by title',
          "15 6 * * *"),
         ("al_rbac_configuration_drift",
-         "Is any rl_* or pr_* role defined outside the tristate_rbac app?",
+         "Is any rl_* or pr_* role stanza defined outside the tristate_rbac "
+         "app?",
          "A result means a role was created through Splunk Web or written to "
-         "etc/system/local, which is outside version control and not "
-         "distributed. Remove it and make the change in the catalog.",
-         '| rest /services/authorization/roles '
-         '| fields title eai:acl.app | rename eai:acl.app as app '
-         '| search (title=rl_* OR title=pr_*) AND NOT app=tristate_rbac '
+         "etc/system/local, which is outside version control and is not "
+         "distributed to other search heads. Remove it and make the change in "
+         "the catalog instead.",
+         # The authorization/roles endpoint reports an EMPTY eai:acl.app for
+         # every role and sharing=system, so it cannot answer this question. The
+         # conf endpoint reports the owning app, which is what drift means.
+         '| rest /servicesNS/-/-/configs/conf-authorize '
+         '| eval app=\'eai:acl.app\' '
+         '| search title=role_rl_* OR title=role_pr_* '
+         '| search NOT app=tristate_rbac '
          '| table title app',
          "20 6 * * *"),
         ("al_rbac_sensitive_role_chain_membership",

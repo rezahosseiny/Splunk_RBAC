@@ -359,6 +359,10 @@ feature_bundles:
       Index modification and data destruction. SENSITIVE. Held separately from
       pr_feat_admin_platform so that no single role can both reconfigure the
       platform and delete the record of it.
+
+      It does not grant run_collect: Splunk 10.4.1 grants that to every user
+      regardless of role, so granting it here would imply a control that does not
+      exist (ADR-014).
     sensitive: true
     single_role_justification: >-
       Only rl_data_custodian, by design. One holder is the point: separating
@@ -367,7 +371,6 @@ feature_bundles:
     capabilities:
       - indexes_edit
       - delete_by_keyword
-      - run_collect
       - edit_upload_and_index
     governance:
       time_bounded: true

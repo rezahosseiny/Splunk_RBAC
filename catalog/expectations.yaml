@@ -367,7 +367,6 @@ expectations:
     must_not_hold:
       - delete_by_keyword          # separation of duties from rl_data_custodian
       - indexes_edit
-      - run_collect
       - edit_upload_and_index
     quotas:
       srchTimeWin: 0
@@ -408,7 +407,6 @@ expectations:
       - schedule_search
       - indexes_edit
       - delete_by_keyword
-      - run_collect
       - edit_upload_and_index
     must_not_hold:
       - edit_user                  # separation of duties from rl_platform_admin

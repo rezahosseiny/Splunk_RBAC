@@ -141,3 +141,34 @@ also stops the detection comparing against a stale lookup.
 Phase 5 must now run the detections and prove each fires on injection. Note that
 `al_rbac_destructive_capability_check` will report 14 of 15 roles, correctly,
 because of finding 1.
+
+## Detections corrected and verified — 2026-08-18
+
+All seven behave correctly on a healthy environment: six return nothing, and
+`al_rbac_sensitive_role_chain_membership` returns the two sensitive role holders,
+which is the recertification evidence it exists to produce.
+
+Getting there needed three corrections to the SPL. Each returned findings that
+were artefacts of the query, not the environment, and each would have made the
+detection useless in a different way.
+
+1. **Sensitive capability sprawl reported 15 rows**, all from the built-in
+   `admin` role. The strategy governs `admin` under the sensitive tier and does
+   not expect this project to change it, so the query now examines `pr_*` and
+   `rl_*` only. A detection that always fires on something expected gets
+   suppressed, and then it catches nothing.
+2. **Destructive capability check reported 4 rows** — `admin`, `can_delete`,
+   `splunk-system-role`, and `pr_feat_admin_data` itself. The bundle holding the
+   capability is the intended grant point, and built-in roles are out of scope.
+   It now examines `rl_*` Business Roles, which is what a user actually holds.
+3. **Configuration drift reported all 44 stanzas.** The
+   `/services/authorization/roles` endpoint returns an EMPTY `eai:acl.app` for
+   every role and `sharing=system`, so it cannot answer which app owns a role —
+   the query was comparing every role against an empty string. It now reads
+   `/servicesNS/-/-/configs/conf-authorize`, where the owning app is populated.
+   This one is the most instructive: the detection appeared to work, reported
+   plausible-looking rows, and was measuring nothing.
+
+Also cleaned up: a `role_zz_scratch_bare` stanza left by the revocation
+experiment, removed with `--prune`. That the orphan report named it is the
+pruning path working.
