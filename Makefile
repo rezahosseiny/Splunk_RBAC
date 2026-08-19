@@ -17,11 +17,14 @@
 #   make seed       ingest the sample data into the governed indexes
 #   make reseed     clean reload: purge, redeploy, seed (use after changes)
 #   make test-behavioral  live suite per test user, plus detection injection
-#   make test       both suites, then the readable report
+#   make test       both suites, then the reports
+#   make report     regenerate the full configuration and test report
+#   make report-shareable   the same report with credentials masked
 #   make teardown   remove generated apps, catalog indexes, and test users
 #   make rebuild    teardown, then the whole chain end to end
 #
-# Phases 3-5 add: users, test-static, test-behavioral, test, capability-baseline.
+# Typical order for a fresh environment:
+#   make offline && make connect && make deploy && make users && make seed && make test
 
 PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo python3)
 EXPORTS := $(wildcard sample_data/*.csv)
@@ -29,7 +32,7 @@ EXPORTS := $(wildcard sample_data/*.csv)
 .PHONY: help all offline validate profile fixtures build redaction \
         coverage capability-baseline connect deploy deploy-rest seed \
         users verify-users reseed teardown rebuild clean \
-        test test-static test-behavioral
+        test test-static test-behavioral report report-shareable
 
 # Prints the header block above, so help cannot drift from it.
 help:
@@ -73,6 +76,13 @@ test-behavioral:
 # it is produced by the pipeline rather than assembled by hand.
 test: test-static test-behavioral
 	$(PY) -m tools.test_report
+	$(PY) -m tools.rbac_report
+
+report:
+	$(PY) -m tools.rbac_report
+
+report-shareable:
+	$(PY) -m tools.rbac_report --mask-passwords -o reports/rbac_report_shareable.md
 
 coverage:
 	$(PY) -m tools.coverage_report
