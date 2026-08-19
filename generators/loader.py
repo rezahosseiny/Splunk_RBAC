@@ -206,6 +206,13 @@ class Catalog:
         floors = self.taxonomy.get("platform_floors") or {}
         return set(floors.get("capabilities") or {})
 
+    def expected_visible_apps(self, role_name):
+        """Apps a behavioural test should see: the grant plus any recorded
+        capability-driven addition (ADR-014 Finding E)."""
+        expect = self.expects.get(role_name) or {}
+        return sorted(set(expect.get("visible_apps") or [])
+                      | set(expect.get("additional_visible_apps") or []))
+
     def expected_live_capabilities(self, role_name):
         """What a behavioural test should see: the grant plus the platform floor.
 
@@ -462,6 +469,14 @@ class Catalog:
             all_apps = set(self.expectations.get("workspace_apps_all", []))
             hidden = set(expect.get("hidden_apps") or [])
             visible = set(expect.get("visible_apps") or [])
+            # An app visible because of a capability rather than a workspace
+            # bundle must be recorded with its reason, or it is indistinguishable
+            # from an over-grant.
+            extra = set(expect.get("additional_visible_apps") or [])
+            if extra and not expect.get("additional_visible_reason"):
+                self._err(f"expectations {name}: additional_visible_apps "
+                          f"without additional_visible_reason")
+            visible |= extra
             if visible & hidden:
                 self._err(f"expectations {name}: apps in both visible_apps and "
                           f"hidden_apps: {sorted(visible & hidden)}")

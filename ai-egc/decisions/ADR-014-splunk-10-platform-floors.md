@@ -93,6 +93,21 @@ The catalog writes `srchTimeWin: 0`, the documented value for no limit. Splunk
 reports the effective value as `-1`. The two are the same intent in different
 representations, so a naive comparison reports a mismatch that is not one.
 
+## Finding E — a capability defeats the workspace boundary
+
+`rl_platform_admin` sees all four workspace apps, not the one its workspace
+bundle grants. `admin_all_objects` in `pr_feat_admin_platform` bypasses object
+ACLs, and app visibility is an ACL.
+
+The capability is needed: a platform administrator must manage knowledge objects
+across apps. So the workspace boundary does not apply to that role, and cannot be
+made to while it holds that capability.
+
+This was flagged as a risk in ADR-013's consequences and is now confirmed. It is
+recorded in `catalog/expectations.yaml` as `additional_visible_apps` with a
+required reason, rather than by widening `visible_apps` — a reader comparing this
+role against the others would otherwise conclude the boundary holds for everyone.
+
 ## Decision
 
 **Record the floors in the catalog as measured facts, and compare against them
@@ -147,6 +162,9 @@ the intent survives for a release that supports it.
 - The floors are release-specific. `make capability-baseline` and the
   behavioural suite both re-measure them, so an upgrade that changes a floor is
   a test failure rather than a surprise.
+- A role holding `admin_all_objects` has no workspace boundary. Any future role
+  granted that capability loses app-visibility scoping, and the expectations must
+  record it.
 
 ## Approval
 

@@ -183,10 +183,14 @@ class Redactor:
                         if line:
                             self.forbidden_literals.append(line.lower())
 
+        # An address is safe when it cannot reach a real mailbox, not when it
+        # matches this module's own output format. Any address at the reserved
+        # pseudonym domain qualifies: RFC 2606 guarantees it never resolves. That
+        # covers the test-user addresses in catalog/users.yaml as well as
+        # generated pseudonyms, without special-casing either.
         self.own_output_re = re.compile(
-            r"^(?:" + re.escape(self.sentinel) + r"|"
-            + re.escape(self.prefix) + r"[0-9a-f]{8}@"
-            + re.escape(self.domain) + r")$")
+            r"^(?:" + re.escape(self.sentinel)
+            + r"|[A-Za-z0-9._%+$!=\'-]+@" + re.escape(self.domain) + r")$")
 
     # ---- helpers ---------------------------------------------------------
 

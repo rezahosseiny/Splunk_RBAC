@@ -25,7 +25,8 @@ behaviours:
       rl_cov_data differs from rl_cov_base by exactly one data bundle. Its index
       set must grow by that bundle's indexes. Its capability set, its quotas, and
       its visible apps must stay identical.
-    tests: [test_data_access, test_capabilities, test_quotas, test_app_visibility]
+    tests: [test_data_access, test_capabilities, test_quotas, test_app_visibility,
+            test_differential_pairs]
 
   - id: COMP-02
     behaviour: A search bundle changes the runtime envelope and nothing else.
@@ -98,7 +99,7 @@ behaviours:
       supplies both, so a wrong rule cannot give the right answer by accident: if
       Splunk took the last bundle the disk quota would be 200, and if it took the
       least the job quota would be 5.
-    tests: [test_quotas]
+    tests: [test_quotas, test_quota_maximum_across_bundles]
 
   - id: COMP-09
     behaviour: A bundle is reusable across several Business Roles.
@@ -163,7 +164,7 @@ behaviours:
       over index=* returns events only from permitted indexes. Both must hold: a
       model that denied the named search but leaked through the wildcard would
       pass a weaker test.
-    tests: [test_data_access]
+    tests: [test_data_access, test_data_access_denied_is_silent]
 
   - id: BOUND-06
     behaviour: The quarantine index is reachable only by a deliberate grant.
@@ -235,7 +236,8 @@ behaviours:
       The rendered stanza holds only a comment. rl_cov_workspace and rl_cov_base
       must return identical index sets, capability sets, and quotas, and differ
       only in visible apps.
-    tests: [test_bundle_concerns, test_generated_confs, test_app_visibility]
+    tests: [test_bundle_concerns, test_generated_confs, test_app_visibility,
+            test_workspace_bundle_grants_nothing_else]
 
   - id: BOUND-13
     behaviour: A service account uses the constrained envelope.
@@ -266,7 +268,7 @@ behaviours:
       The generated authentication.conf template holds one line for each
       Business Role, in the form GRP_splunk_<role> = <role>, with exactly one
       role after the equals sign. No pr_* bundle appears on any line.
-    tests: [test_generated_confs]
+    tests: [test_generated_confs, test_roleMap_template]
     limitation: >-
       Text only. Live SAML behaviour needs an identity provider, which this
       environment does not have (ADR-003).
@@ -334,3 +336,29 @@ behaviours:
       bundles, against targets of 8-12, 3-4, 6-10, and 3-6. The test warns rather
       than fails, because the strategy permits growth with justification.
     tests: [test_sizing]
+
+  - id: CAT-04
+    behaviour: The recorded platform capability floor still describes the platform.
+    strategy_basis: >-
+      Capability changes across Splunk releases — an upgrade must not silently
+      widen what a role grants.
+    roles: [all]
+    observable_because: >-
+      Splunk 10.4.1 grants five capabilities to every user regardless of role and
+      no role configuration revokes them (ADR-014). They are recorded as a
+      measured floor rather than folded into each role's expected set. The test
+      asserts the floor is exactly what is recorded, so an upgrade that adds to it
+      fails here instead of quietly widening access everywhere.
+    tests: [test_platform_capability_floor_unchanged]
+
+  - id: BOUND-15
+    behaviour: No project role is defined outside the deployment app.
+    strategy_basis: >-
+      Authoritative configuration paths — a UI change lands in etc/system/local,
+      which is per-member and outside version control.
+    roles: [all]
+    observable_because: >-
+      Every rl_* and pr_* stanza reports tristate_rbac as its owning app. Asserted
+      directly as well as by the drift detection, because a detection that is
+      itself misconfigured would report nothing.
+    tests: [test_no_project_role_outside_the_rbac_app, test_compliance_detections]

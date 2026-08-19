@@ -7,6 +7,7 @@
 #   make build      render build/apps from the catalog
 #   make redaction  verify no production identifier reaches a generated file
 #   make coverage   render the RBAC coverage matrix
+#   make test-static  static suite: catalog and generated confs, offline
 #
 # Against the instance (needs config/.env):
 #   make connect    confirm credentials and report the Splunk version
@@ -15,17 +16,20 @@
 #   make users      create the test users, one per Business Role
 #   make seed       ingest the sample data into the governed indexes
 #   make reseed     clean reload: purge, redeploy, seed (use after changes)
+#   make test-behavioral  live suite per test user, plus detection injection
+#   make test       both suites, then the readable report
 #   make teardown   remove generated apps, catalog indexes, and test users
 #   make rebuild    teardown, then the whole chain end to end
 #
 # Phases 3-5 add: users, test-static, test-behavioral, test, capability-baseline.
 
-PY := python3
+PY := $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo python3)
 EXPORTS := $(wildcard sample_data/*.csv)
 
 .PHONY: help all offline validate profile fixtures build redaction \
         coverage capability-baseline connect deploy deploy-rest seed \
-        users verify-users reseed teardown rebuild clean
+        users verify-users reseed teardown rebuild clean \
+        test test-static test-behavioral
 
 # Prints the header block above, so help cannot drift from it.
 help:
@@ -35,7 +39,7 @@ help:
 offline: validate fixtures profile build redaction coverage
 	@echo "offline pipeline complete"
 
-all: offline deploy users seed
+all: offline deploy users seed test
 	@echo "full pipeline complete"
 
 validate:
@@ -56,6 +60,19 @@ fixtures:
 
 build:
 	$(PY) -m generators.build
+
+test-static:
+	@mkdir -p reports
+	$(PY) -m pytest tests/static -q --junitxml=reports/junit-static.xml
+
+test-behavioral:
+	@mkdir -p reports
+	$(PY) -m pytest tests/behavioral -q --junitxml=reports/junit-behavioral.xml
+
+# Both suites, then the report. The report is the evidence a work item needs, so
+# it is produced by the pipeline rather than assembled by hand.
+test: test-static test-behavioral
+	$(PY) -m tools.test_report
 
 coverage:
 	$(PY) -m tools.coverage_report

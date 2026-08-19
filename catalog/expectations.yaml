@@ -375,7 +375,19 @@ expectations:
       srchDiskQuota: 2000
       srchMaxTime: 0
     visible_apps: [tristate_itops_workspace]
-    hidden_apps: [tristate_soc_workspace, tristate_ot_workspace, tristate_audit_workspace]
+    # MEASURED, not intended. admin_all_objects bypasses object ACLs, so this
+    # role sees every workspace app whatever its workspace bundle grants. The
+    # workspace boundary therefore does not apply to a platform administrator.
+    # Recorded here rather than hidden, because a reader comparing this role to
+    # the others would otherwise conclude the boundary holds for everyone.
+    # See ADR-014 Finding E.
+    additional_visible_apps:
+      - tristate_soc_workspace
+      - tristate_ot_workspace
+      - tristate_audit_workspace
+    additional_visible_reason: >-
+      admin_all_objects in pr_feat_admin_platform bypasses object ACLs.
+    hidden_apps: []
 
   rl_data_custodian:
     intent: >-

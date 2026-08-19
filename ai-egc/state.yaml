@@ -1,16 +1,19 @@
 project: splunk-rbac-test-harness
-lifecycle_state: build
-active_work: WRK-005
+lifecycle_state: operate
+active_work: null
 next_action: >-
-  Phase 5 (WRK-005) — the automated test suites and reporting. Static suite
-  offline, behavioural suite per test user against expectations.yaml, and each of
-  the seven detections proven to fire on an injected violation.
-  ONE DECISION FIRST, and it is Reza's: ADR-014 finding 1 shows that run_collect
-  and run_mcollect reach every user on Splunk 10.4.1 and cannot be revoked, so
-  the sensitive-tier isolation the strategy requires is unachievable for those
-  two. Strategy 2.1 must either drop them from the sensitive tier with that
-  reasoning recorded, or state the control is unenforceable on this release and
-  rely on audit rather than prevention. The al_rbac_destructive_capability_check
-  detection will report 14 of 15 roles until that is settled — correctly.
+  All five roadmap phases are complete. 37 tests pass, 31 behaviours proven, all
+  7 detections proven to fire, and `make rebuild` from a clean instance ends
+  green.
+  Outstanding for Reza: (1) confirm ADR-014, which records five platform
+  behaviours that limit what the strategy can claim — most importantly that
+  run_collect and run_mcollect reach every user and were dropped from the
+  sensitive tier as a result; (2) the Strategy 2.1 amendments the project
+  surfaced, listed in ROADMAP.md; (3) pin the AI-EGC framework source in
+  manifest.yaml, still the one placeholder.
+  Beyond the roadmap: replace the three synthetic coverage fixtures with real OT
+  and public-tier exports, run the remediation programme from
+  docs/source_remediation_map.md, add CI for the static suite, and cover SAML
+  role mapping behaviourally on an IdP-backed environment.
 last_updated: 2026-08-18
 updated_by: Reza Hosseiny
